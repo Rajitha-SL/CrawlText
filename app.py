@@ -4,8 +4,18 @@ import tempfile
 import time
 import gradio as gr
 
+try:
+    import spaces
+
+    @spaces.GPU
+    def _zero_gpu_init():
+        return True
+except Exception:
+    pass
+
 from security import is_ssrf_safe
 from crawler import AsyncCrawler
+
 
 async def run_crawl_gradio(url: str, max_pages: int, crawl_delay_s: float):
     """
