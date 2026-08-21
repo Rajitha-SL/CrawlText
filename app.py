@@ -127,11 +127,9 @@ with gr.Blocks(
     btn_start.click(
         fn=run_crawl_gradio,
         inputs=[url_input, max_pages_slider, crawl_delay_slider],
-        outputs=[status_output, output_text, file_download]
+        outputs=[status_output, output_text, file_download],
+        api_name=False
     )
 
 if __name__ == "__main__":
-    demo.queue().launch()
-
-
-
+    demo.queue().launch(server_name="0.0.0.0", server_port=7860)
