@@ -9,17 +9,21 @@ from crawler import AsyncCrawler
 
 async def run_crawl_gradio(url: str, max_pages: int, crawl_delay_s: float):
     """
-    Async handler function for Gradio interface.
-    Executes crawler, formats results, and creates a temporary downloadable .txt file.
+    Asynchronous Gradio handler for full-site web crawling & text extraction.
+    Runs on pure CPU without blocking worker threads or requiring GPU decorators.
     """
-    if not url or not isinstance(url, str) or not (url.startswith("http://") or url.startswith("https://")):
+    if not url or not isinstance(url, str) or not url.strip():
         return (
-            "### ❌ Error\nPlease enter a valid URL starting with `http://` or `https://`.",
+            "### ⚠️ Warning\nPlease enter a valid URL.",
             "",
             None
         )
 
-    # SSRF Protection Check
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    # SSRF Security Validation
     is_safe, error_reason = is_ssrf_safe(url)
     if not is_safe:
         return (
@@ -54,7 +58,10 @@ async def run_crawl_gradio(url: str, max_pages: int, crawl_delay_s: float):
     pages_skipped = results.get("pages_skipped", 0)
     domain = results.get("target_domain", "")
 
-    summary_md = f"""### 📊 Crawl Job Completed Successfully
+    if not combined_output or not combined_output.strip():
+        combined_output = "[No readable text content was extracted from this domain]"
+
+    summary_md = f"""### ✅ Crawl Completed Successfully
 - **Target Domain:** `{domain}`
 - **Pages Crawled:** `{pages_crawled}` / `{max_pages}`
 - **Discovered Links:** `{pages_discovered}`
@@ -62,10 +69,7 @@ async def run_crawl_gradio(url: str, max_pages: int, crawl_delay_s: float):
 - **Elapsed Time:** `{elapsed_s}s`
 """
 
-    if not combined_output.strip():
-        combined_output = "[No readable text content was extracted from this domain]"
-
-    # Create temporary file for download component
+    # Create temporary downloadable file
     temp_dir = tempfile.gettempdir()
     file_name = f"crawltext_{domain.replace('.', '_')}_{int(time.time())}.txt"
     file_path = os.path.join(temp_dir, file_name)
@@ -137,5 +141,3 @@ demo.launch(
     server_port=7860,
     ssr_mode=False
 )
-
-
