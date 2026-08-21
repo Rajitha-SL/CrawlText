@@ -120,8 +120,10 @@
     <!-- Inline FOWT Theme Prevention Script -->
     <script>
         (function() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            if (savedTheme === 'light') {
+            const savedTheme = localStorage.getItem('theme');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme ? savedTheme : (systemDark ? 'dark' : 'light');
+            if (theme === 'light') {
                 document.documentElement.classList.remove('dark');
                 document.documentElement.classList.add('light');
             } else {

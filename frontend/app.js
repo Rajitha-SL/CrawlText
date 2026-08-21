@@ -49,33 +49,50 @@ let currentTargetDomain = "extracted";
 
 // Theme Toggle Logic
 function updateThemeIcon(isLight) {
+    if (!themeToggleIcon || !themeToggleBtn) return;
     if (isLight) {
-        themeToggleIcon.className = "fa-solid fa-moon text-indigo-400 text-sm";
+        themeToggleIcon.className = "fa-solid fa-moon text-indigo-500 dark:text-indigo-400 text-sm group-hover:rotate-12 transition-transform duration-300";
         themeToggleBtn.title = "Switch to Dark Mode";
     } else {
-        themeToggleIcon.className = "fa-solid fa-sun text-amber-400 text-sm";
+        themeToggleIcon.className = "fa-solid fa-sun text-amber-500 dark:text-amber-400 text-sm group-hover:rotate-45 transition-transform duration-300";
         themeToggleBtn.title = "Switch to Light Mode";
     }
 }
 
-// Initial Theme Check
-const initialTheme = localStorage.getItem("theme") || "dark";
-updateThemeIcon(initialTheme === "light");
+// Initial Theme Check (localStorage with system preference fallback)
+const getInitialTheme = () => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
 
-themeToggleBtn.addEventListener("click", () => {
-    const isDark = document.documentElement.classList.contains("dark");
-    if (isDark) {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.classList.add("light");
-        localStorage.setItem("theme", "light");
-        updateThemeIcon(true);
-    } else {
-        document.documentElement.classList.remove("light");
-        document.documentElement.classList.add("dark");
-        localStorage.setItem("theme", "dark");
-        updateThemeIcon(false);
-    }
-});
+const currentTheme = getInitialTheme();
+if (currentTheme === "light") {
+    document.documentElement.classList.remove("dark");
+    document.documentElement.classList.add("light");
+    updateThemeIcon(true);
+} else {
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+    updateThemeIcon(false);
+}
+
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+        const isDark = document.documentElement.classList.contains("dark");
+        if (isDark) {
+            document.documentElement.classList.remove("dark");
+            document.documentElement.classList.add("light");
+            localStorage.setItem("theme", "light");
+            updateThemeIcon(true);
+        } else {
+            document.documentElement.classList.remove("light");
+            document.documentElement.classList.add("dark");
+            localStorage.setItem("theme", "dark");
+            updateThemeIcon(false);
+        }
+    });
+}
 
 // Advanced Controls Drawer Toggle
 toggleAdvBtn.addEventListener("click", () => {
