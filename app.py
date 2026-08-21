@@ -1,153 +1,96 @@
-import asyncio
 import os
 import tempfile
-import time
+import asyncio
 import gradio as gr
+import spaces
 
-try:
-    import spaces
+from crawler import crawl_site
+from extractor import format_crawl_results
 
-    @spaces.GPU
-    def _zero_gpu_init():
-        return True
-except Exception:
-    pass
-
-from security import is_ssrf_safe
-from crawler import AsyncCrawler
-
-
-async def run_crawl_gradio(url: str, max_pages: int, crawl_delay_s: float):
-    """
-    Asynchronous Gradio handler for full-site web crawling & text extraction.
-    Runs on pure CPU without blocking worker threads or requiring GPU decorators.
-    """
-    if not url or not isinstance(url, str) or not url.strip():
-        return (
-            "### ⚠️ Warning\nPlease enter a valid URL.",
-            "",
-            None
+def _crawl_worker(url: str, max_pages: int, delay: float):
+    """Synchronous worker that manages its own clean event loop for ZeroGPU."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        results = loop.run_until_complete(
+            crawl_site(start_url=url, max_pages=int(max_pages), delay=float(delay))
         )
+        return results
+    finally:
+        loop.close()
+
+@spaces.GPU(duration=60)
+def handle_crawl(url: str, max_pages: int, delay: float):
+    """ZeroGPU decorated endpoint that executes the crawling task."""
+    if not url or not url.strip():
+        return "⚠️ Please enter a valid URL.", "", None
 
     url = url.strip()
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
-    # SSRF Security Validation
-    is_safe, error_reason = is_ssrf_safe(url)
-    if not is_safe:
-        return (
-            f"### 🛡️ SSRF Security Blocked\n**Reason:** {error_reason}",
-            "",
-            None
-        )
-
-    start_time = time.time()
-    crawl_delay_ms = int(crawl_delay_s * 1000)
-
-    crawler = AsyncCrawler(
-        root_url=url,
-        max_pages=int(max_pages),
-        max_depth=4,
-        crawl_delay_ms=crawl_delay_ms
-    )
-
     try:
-        results = await crawler.crawl()
+        results = _crawl_worker(url, max_pages, delay)
+
+        if not results:
+            return "❌ No pages were found or extracted.", "", None
+
+        formatted_text = format_crawl_results(results)
+        summary = f"### ✅ Crawl Complete\n- **Target**: `{url}`\n- **Pages Extracted**: `{len(results)}`"
+
+        # Create temporary file for download
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".txt", mode="w", encoding="utf-8")
+        tmp.write(formatted_text)
+        tmp.close()
+
+        return summary, formatted_text, tmp.name
+
     except Exception as e:
-        return (
-            f"### ❌ Execution Error\n`{str(e)}`",
-            "",
-            None
-        )
+        return f"❌ Error during crawl: {str(e)}", "", None
 
-    elapsed_s = round(time.time() - start_time, 2)
-    combined_output = results.get("combined_output", "")
-    pages_crawled = results.get("pages_crawled", 0)
-    pages_discovered = results.get("pages_discovered", 0)
-    pages_skipped = results.get("pages_skipped", 0)
-    domain = results.get("target_domain", "")
-
-    if not combined_output or not combined_output.strip():
-        combined_output = "[No readable text content was extracted from this domain]"
-
-    summary_md = f"""### ✅ Crawl Completed Successfully
-- **Target Domain:** `{domain}`
-- **Pages Crawled:** `{pages_crawled}` / `{max_pages}`
-- **Discovered Links:** `{pages_discovered}`
-- **Skipped / Failed:** `{pages_skipped}`
-- **Elapsed Time:** `{elapsed_s}s`
-"""
-
-    # Create temporary downloadable file
-    temp_dir = tempfile.gettempdir()
-    file_name = f"crawltext_{domain.replace('.', '_')}_{int(time.time())}.txt"
-    file_path = os.path.join(temp_dir, file_name)
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(combined_output)
-
-    return summary_md, combined_output, file_path
-
-
-# Build Gradio Blocks UI
-with gr.Blocks(
-    title="CrawlText - Web Text Extraction Engine",
-    theme=gr.themes.Soft(primary_hue="blue", secondary_hue="cyan")
-) as demo:
-    gr.Markdown(
-        """
-        # 🕷️ CrawlText - Full-Site Text Extraction & Crawler Engine
-        Extract clean main body text from entire web domains, stripping headers, footers, sidebars, scripts, and cookie banners.
-        """
-    )
+# Gradio Interface Construction
+with gr.Blocks(title="RaSL CrawlText") as demo:
+    gr.Markdown("# 🕸️ RaSL CrawlText - Web Scraper")
+    gr.Markdown("Extract text content from multiple pages of a target website.")
 
     with gr.Row():
-        with gr.Column(scale=2):
+        with gr.Column(scale=1):
             url_input = gr.Textbox(
-                label="Target Root URL",
+                label="Target URL",
                 placeholder="https://example.com",
                 lines=1
             )
-            with gr.Row():
-                max_pages_slider = gr.Slider(
-                    minimum=5,
-                    maximum=100,
-                    value=25,
-                    step=5,
-                    label="Max Pages Limit"
-                )
-                crawl_delay_slider = gr.Slider(
-                    minimum=0.1,
-                    maximum=1.0,
-                    value=0.3,
-                    step=0.05,
-                    label="Crawl Throttle Delay (Seconds)"
-                )
-            btn_start = gr.Button("🚀 Start Crawling", variant="primary")
+            max_pages = gr.Slider(
+                minimum=1,
+                maximum=50,
+                value=10,
+                step=1,
+                label="Max Pages to Crawl"
+            )
+            delay = gr.Slider(
+                minimum=0.1,
+                maximum=2.0,
+                value=0.3,
+                step=0.1,
+                label="Crawl Throttle Delay (seconds)"
+            )
+            crawl_btn = gr.Button("Start Crawling", variant="primary")
 
-        with gr.Column(scale=1):
-            status_output = gr.Markdown("### ℹ️ Status\nEnter a target URL and click **Start Crawling**.")
-            file_download = gr.File(label="📥 Download Extracted Text (.txt)")
+        with gr.Column(scale=2):
+            status_box = gr.Markdown("Ready.")
+            download_btn = gr.File(label="Download Formatted Text (.txt)")
+            output_box = gr.Textbox(
+                label="Extracted Content",
+                lines=16,
+                max_lines=25
+            )
 
-    output_text = gr.Textbox(
-        label="Extracted Formatted Content",
-        lines=18,
-        max_lines=35,
-        interactive=False,
-        show_copy_button=True
-    )
-
-    btn_start.click(
-        fn=run_crawl_gradio,
-        inputs=[url_input, max_pages_slider, crawl_delay_slider],
-        outputs=[status_output, output_text, file_download],
+    crawl_btn.click(
+        fn=handle_crawl,
+        inputs=[url_input, max_pages, delay],
+        outputs=[status_box, output_box, download_btn],
         api_name=False
     )
 
 demo.queue()
-demo.launch(
-    server_name="0.0.0.0",
-    server_port=7860,
-    ssr_mode=False
-)
+demo.launch()

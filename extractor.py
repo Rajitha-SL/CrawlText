@@ -143,3 +143,12 @@ def format_page_output(title: str, url: str, body_text: str) -> str:
     """Formats a single page's output according to the required specification."""
     divider = "=" * 50
     return f"{divider}\nPAGE: {title}\nURL: {url}\n{divider}\n\n{body_text}\n\n"
+
+
+def format_crawl_results(results: list) -> str:
+    """Formats list of page result dictionaries into a unified formatted output string."""
+    chunks = []
+    for item in results:
+        chunks.append(format_page_output(item.get("title", ""), item.get("url", ""), item.get("text", "")))
+    return "".join(chunks)
+

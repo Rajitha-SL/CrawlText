@@ -290,3 +290,16 @@ class AsyncCrawler:
 
         await self._emit("done", final_summary)
         return final_summary
+
+
+async def crawl_site(start_url: str, max_pages: int = 10, delay: float = 0.3):
+    """Helper function to run AsyncCrawler and return extracted pages list."""
+    crawler = AsyncCrawler(
+        root_url=start_url,
+        max_pages=max_pages,
+        max_depth=4,
+        crawl_delay_ms=int(delay * 1000)
+    )
+    results = await crawler.crawl()
+    return results.get("extracted_pages", [])
+
