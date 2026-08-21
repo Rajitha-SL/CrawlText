@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RaSL CrawlText Pro - High-Performance Web Scraper & Text Extractor</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            100: '#e0edff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            accent: '#06b6d4',
+                            purple: '#a855f7',
+                        },
+                        dark: {
+                            bg: '#070a12',
+                            card: '#0f172a',
+                            surface: '#1e293b',
+                            border: '#334155',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #070a12;
+            background-image: 
+                radial-gradient(at 15% 15%, rgba(59, 130, 246, 0.15) 0px, transparent 45%),
+                radial-gradient(at 85% 85%, rgba(168, 85, 247, 0.15) 0px, transparent 45%);
+            background-attachment: fixed;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-accent {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .animate-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800/80 glass-panel sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                    <i class="fa-solid fa-spider text-white text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-300 to-purple-400">RaSL CrawlText</h1>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">PRO</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Enterprise Full-Site Text Extraction Engine</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div id="backendStatus" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>HF API: Connected</span>
+                </div>
+                <a href="https://github.com/Rajitha-SL/CrawlText" target="_blank" class="text-slate-400 hover:text-white transition-colors text-lg" title="GitHub Repository">
+                    <i class="fa-brands fa-github"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-6">
+
+        <!-- Hero Title & Subtitle -->
+        <div class="text-center max-w-3xl mx-auto space-y-3 pt-2">
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                Clean Text Extraction for <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400">Entire Domains</span>
+            </h2>
+            <p class="text-slate-400 text-sm sm:text-base">
+                Recursively crawl web pages, strip navigation headers, footers, scripts, and popups, and export structured Markdown text in seconds.
+            </p>
+        </div>
+
+        <!-- Input & Controls Card -->
+        <section class="glass-panel rounded-2xl p-6 shadow-2xl space-y-4">
+            <form id="crawlForm" class="space-y-4">
+                <div>
+                    <label for="urlInput" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                        <span>Target Root Domain / Homepage URL</span>
+                        <span class="text-[11px] text-slate-400 font-normal">Auto-prefixes https:// if omitted</span>
+                    </label>
+                    <div class="relative flex items-center">
+                        <div class="absolute left-4 text-slate-400 text-base">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            required 
+                            placeholder="https://example.com or docs.example.com" 
+                            class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl py-3.5 pl-11 pr-36 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm shadow-inner"
+                        >
+                        <div class="absolute right-2 flex items-center">
+                            <button 
+                                type="submit" 
+                                id="btnStart"
+                                class="px-5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold text-sm rounded-lg shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <i id="btnIcon" class="fa-solid fa-bolt text-xs"></i>
+                                <span id="btnText">Start Crawl</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Controls Drawer Toggle -->
+                <div class="pt-1">
+                    <button type="button" id="toggleAdvBtn" class="text-xs text-slate-400 hover:text-blue-400 flex items-center gap-2 font-medium transition-colors cursor-pointer">
+                        <i id="advIcon" class="fa-solid fa-sliders text-[11px]"></i> Advanced Crawler Parameters
+                        <i id="advChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
+                    </button>
+
+                    <div id="advDrawer" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-800 mt-3">
+                        <!-- Max Pages Slider -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 mb-2">
+                                <span>Max Pages Limit</span>
+                                <span id="maxPagesDisplay" class="text-blue-400 font-mono font-bold">15 pages</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                id="maxPages" 
+                                min="1" 
+                                max="50" 
+                                value="15" 
+                                step="1"
+                                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            >
+                        </div>
+
+                        <!-- Throttle Delay Slider -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 mb-2">
+                                <span>Politeness Throttle Delay</span>
+                                <span id="delayDisplay" class="text-cyan-400 font-mono font-bold">0.3 seconds</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                id="crawlDelay" 
+                                min="0.1" 
+                                max="2.0" 
+                                value="0.3" 
+                                step="0.1"
+                                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Status & Progress Feedback Bar -->
+        <section id="statusPanel" class="hidden glass-panel-accent rounded-xl p-4 transition-all">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <div id="statusSpinner" class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span id="statusMessage" class="text-sm font-semibold text-slate-200">Connecting to Hugging Face worker...</span>
+                </div>
+                <span id="statusTimer" class="text-xs font-mono text-slate-400">00:00</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                <div id="progressBar" class="bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-500 h-1.5 rounded-full transition-all duration-300 w-1/4 animate-pulse"></div>
+            </div>
+        </section>
+
+        <!-- Error Alert Banner -->
+        <div id="errorAlert" class="hidden glass-panel border-l-4 border-rose-500 rounded-xl p-4 text-rose-300 flex items-start gap-3">
+            <i class="fa-solid fa-triangle-exclamation text-rose-400 text-lg mt-0.5"></i>
+            <div class="flex-grow text-xs space-y-1">
+                <p id="errorTitle" class="font-bold text-sm text-rose-200">Execution Error</p>
+                <p id="errorMessage" class="text-slate-300">An unexpected error occurred during extraction.</p>
+            </div>
+            <button onclick="dismissError()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- Metric Overview Cards -->
+        <section id="metricsGrid" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass-panel rounded-xl p-4 border-l-4 border-blue-500">
+                <p class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Target Host</p>
+                <p id="statDomain" class="text-base font-bold font-mono text-white mt-1 truncate">-</p>
+            </div>
+            <div class="glass-panel rounded-xl p-4 border-l-4 border-cyan-500">
+                <p class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Pages Extracted</p>
+                <p id="statPages" class="text-2xl font-extrabold font-mono text-cyan-400 mt-1">0</p>
+            </div>
+            <div class="glass-card rounded-xl p-4 border-l-4 border-purple-500 glass-panel">
+                <p class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Content Length</p>
+                <p id="statChars" class="text-2xl font-extrabold font-mono text-purple-400 mt-1">0 KB</p>
+            </div>
+            <div class="glass-panel rounded-xl p-4 border-l-4 border-emerald-500">
+                <p class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Status</p>
+                <p id="statStatus" class="text-base font-bold font-mono text-emerald-400 mt-1">Completed</p>
+            </div>
+        </section>
+
+        <!-- Results Display Panel -->
+        <section id="resultsPanel" class="hidden glass-panel rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-code text-blue-400"></i> Formatted Text Output
+                    </h3>
+                    <p class="text-xs text-slate-400">Sequential page-by-page text formatted with titles and clean body copy.</p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button 
+                        type="button" 
+                        id="btnCopy"
+                        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                        <i class="fa-regular fa-copy"></i> <span id="copyBtnText">Copy Raw Text</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        id="btnDownload"
+                        class="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                        <i class="fa-solid fa-download"></i> Download .TXT
+                    </button>
+                </div>
+            </div>
+
+            <!-- Monospace Code Output Area -->
+            <div class="relative">
+                <textarea 
+                    id="outputTextarea" 
+                    readonly 
+                    placeholder="Extracted content will appear here..." 
+                    class="w-full h-[450px] bg-slate-950/90 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none resize-none custom-scroll shadow-inner"
+                ></textarea>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500 glass-panel">
+        <p>RaSL CrawlText Pro &bull; Connected to Hugging Face Space <code class="text-slate-400">RASL143/RaSL-CrawlText</code></p>
+    </footer>
+
+    <!-- App JavaScript Module -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -16,12 +16,12 @@ space_hardware: cpu-basic
 
 ## Key Features & Interfaces
 
+- **Standalone SaaS Frontend (`frontend/`)**: Modern dark glassmorphic web app deployable directly to **Vercel** or **GitHub Pages**. Programmatically connects to Hugging Face Space backend `RASL143/RaSL-CrawlText` via `@gradio/client`.
 - **FastAPI Async Backend**: High-performance REST & Server-Sent Events (SSE) streaming engine.
-- **Tailwind CSS Web Dashboard**: Single-page dark mode interface serving interactive real-time logs and text preview.
-- **Gradio Interface**: Native Gradio application (`app.py`) pre-configured for Hugging Face Spaces.
+- **Gradio Interface (`app.py`)**: Native Gradio application pre-configured for Hugging Face Spaces.
 - **Enterprise SSRF Protection**: Built-in security middleware blocking internal subnets, loopbacks, and cloud metadata.
 
-## Quick Start
+## Quick Start & Local Execution
 
 ```bash
 pip install -r requirements.txt
@@ -32,3 +32,9 @@ python main.py
 # Option B: Run Gradio App (http://127.0.0.1:7860)
 python app.py
 ```
+
+## Deploying Frontend on Vercel
+
+1. Import your GitHub repository **`Rajitha-SL/CrawlText`** into [Vercel](https://vercel.com).
+2. Vercel will automatically detect `vercel.json` and set the output directory to `frontend/`.
+3. Click **Deploy**. Your standalone SaaS web application is live!
