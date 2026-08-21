@@ -131,10 +131,10 @@
         })();
     </script>
 </head>
-<body class="text-slate-100 dark:text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white">
+<body class="text-slate-900 dark:text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white">
 
     <!-- Header Navigation -->
-    <header class="border-b border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 glass-panel sticky top-0 z-50">
+    <header class="border-b border-slate-200 dark:border-slate-800/80 glass-panel sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <a href="https://www.linkedin.com/in/rajitha-amarasinghe/" target="_blank" rel="noopener noreferrer" class="logo-popout block" title="LinkedIn Profile" aria-label="RaSL LinkedIn Profile">
@@ -147,7 +147,7 @@
                         <h1 class="text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-500">RaSL CrawlText</h1>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 dark:text-blue-300 border border-blue-500/30">PRO</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 dark:text-slate-400 light:text-slate-500 tracking-wider font-semibold uppercase">LOGIC AND DISCIPLINE</p>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-400 tracking-wider font-semibold uppercase">LOGIC AND DISCIPLINE</p>
                 </div>
             </div>
 
@@ -162,7 +162,7 @@
                 <button 
                     type="button" 
                     id="themeToggleBtn" 
-                    class="p-2 rounded-xl bg-slate-800/80 light:bg-slate-200 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:text-amber-400 transition-all cursor-pointer"
+                    class="p-2 rounded-xl bg-slate-200 dark:bg-slate-800/80 border border-slate-700  text-slate-300  hover:text-amber-400 transition-all cursor-pointer"
                     title="Toggle Theme" 
                     aria-label="Toggle Light or Dark Mode"
                 >
@@ -184,10 +184,10 @@
 
         <!-- Hero Title & Subtitle (Clean & Uncluttered) -->
         <div class="text-center max-w-3xl mx-auto space-y-3 pt-2">
-            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-100 dark:text-slate-100 light:text-slate-900">
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
                 Clean Text Extraction for <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-500">Entire Domains</span>
             </h2>
-            <p class="text-slate-400 dark:text-slate-400 light:text-slate-600 text-sm sm:text-base">
+            <p class="text-slate-600 dark:text-slate-400 text-sm sm:text-base">
                 Recursively crawl web pages, strip navigation headers, footers, scripts, and popups, and export structured Markdown text in seconds.
             </p>
         </div>
@@ -196,7 +196,7 @@
         <section class="glass-panel rounded-2xl p-6 shadow-2xl space-y-4">
             <form id="crawlForm" class="space-y-4">
                 <div>
-                    <label for="urlInput" class="block text-xs font-bold text-slate-300 dark:text-slate-300 light:text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <label for="urlInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
                         <span>Target Root Domain / Homepage URL</span>
                         <span class="text-[11px] text-slate-400 font-normal">Auto-prefixes https:// if omitted</span>
                     </label>
@@ -213,7 +213,7 @@
                                 required 
                                 placeholder="https://example.com or docs.example.com" 
                                 aria-label="Target Root URL Input"
-                                class="w-full bg-slate-950/80 light:bg-white border border-slate-700/80 light:border-slate-300 rounded-xl py-3.5 pl-11 pr-4 text-slate-100 light:text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm shadow-inner"
+                                class="w-full bg-white dark:bg-slate-950/80 border border-slate-700/80  rounded-xl py-3.5 pl-11 pr-4 text-slate-100  placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm shadow-inner"
                             >
                         </div>
                         <button 
@@ -235,10 +235,10 @@
                         <i id="advChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
                     </button>
 
-                    <div id="advDrawer" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-800 dark:border-slate-800 light:border-slate-200 mt-3">
+                    <div id="advDrawer" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-200 dark:border-slate-800 mt-3">
                         <!-- Max Pages Slider -->
                         <div>
-                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 mb-2">
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span>Max Pages Limit</span>
                                 <span id="maxPagesDisplay" class="text-blue-400 font-mono font-bold">25 pages</span>
                             </div>
@@ -253,13 +253,13 @@
                                 aria-valuemin="1"
                                 aria-valuemax="100"
                                 aria-valuenow="25"
-                                class="w-full h-2 bg-slate-800 light:bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                             >
                         </div>
 
                         <!-- Throttle Delay Slider -->
                         <div>
-                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 mb-2">
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span>Politeness Throttle Delay</span>
                                 <span id="delayDisplay" class="text-cyan-400 font-mono font-bold">0.3 seconds</span>
                             </div>
@@ -274,7 +274,7 @@
                                 aria-valuemin="0.1"
                                 aria-valuemax="2.0"
                                 aria-valuenow="0.3"
-                                class="w-full h-2 bg-slate-800 light:bg-slate-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                             >
                         </div>
                     </div>
@@ -287,11 +287,11 @@
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-3">
                     <div id="statusSpinner" class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span id="statusMessage" class="text-sm font-semibold text-slate-200 dark:text-slate-200 light:text-slate-800">Connecting to Hugging Face worker...</span>
+                    <span id="statusMessage" class="text-sm font-semibold text-slate-800 dark:text-slate-200">Connecting to Hugging Face worker...</span>
                 </div>
                 <span id="statusTimer" class="text-xs font-mono text-slate-400">00:00</span>
             </div>
-            <div class="w-full bg-slate-900 light:bg-slate-200 rounded-full h-1.5 overflow-hidden border border-slate-800 light:border-slate-300">
+            <div class="w-full bg-slate-200 dark:bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800 ">
                 <div id="progressBar" class="bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-500 h-1.5 rounded-full transition-all duration-300 w-1/4 animate-pulse"></div>
             </div>
         </section>
@@ -301,7 +301,7 @@
             <i class="fa-solid fa-triangle-exclamation text-rose-400 text-lg mt-0.5"></i>
             <div class="flex-grow text-xs space-y-1">
                 <p id="errorTitle" class="font-bold text-sm text-rose-200">Execution Error</p>
-                <p id="errorMessage" class="text-slate-300 dark:text-slate-300 light:text-slate-700">An unexpected error occurred during extraction.</p>
+                <p id="errorMessage" class="text-slate-700 dark:text-slate-300">An unexpected error occurred during extraction.</p>
             </div>
             <button onclick="dismissError()" class="text-slate-400 hover:text-white text-sm" aria-label="Dismiss Error"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -310,7 +310,7 @@
         <section id="metricsGrid" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="glass-panel rounded-xl p-4 border-l-4 border-blue-500">
                 <p class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Target Host</p>
-                <p id="statDomain" class="text-base font-bold font-mono text-slate-100 dark:text-slate-100 light:text-slate-900 mt-1 truncate">-</p>
+                <p id="statDomain" class="text-base font-bold font-mono text-slate-900 dark:text-slate-100 mt-1 truncate">-</p>
             </div>
             <div class="glass-panel rounded-xl p-4 border-l-4 border-cyan-500">
                 <p class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">Pages Extracted</p>
@@ -328,9 +328,9 @@
 
         <!-- Results Display Panel -->
         <section id="resultsPanel" class="hidden glass-panel rounded-2xl p-6 shadow-2xl space-y-4">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 dark:border-slate-800 light:border-slate-200 pb-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div>
-                    <h3 class="text-base font-bold text-slate-100 dark:text-slate-100 light:text-slate-900 flex items-center gap-2">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <i class="fa-solid fa-file-code text-blue-400"></i> Formatted Text Output
                     </h3>
                     <p class="text-xs text-slate-400">Sequential page-by-page text formatted with titles and clean body copy.</p>
@@ -342,7 +342,7 @@
                         type="button" 
                         id="btnReset"
                         aria-label="New Crawl"
-                        class="px-4 py-2 bg-slate-800/80 light:bg-slate-200 hover:bg-slate-700 light:hover:bg-slate-300 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
+                        class="px-4 py-2 bg-slate-200 dark:bg-slate-800/80 hover:bg-slate-700 :bg-slate-300 border border-slate-700  text-slate-300  rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
                     >
                         <i class="fa-solid fa-rotate-left text-blue-400"></i> <span>New Crawl</span>
                     </button>
@@ -350,7 +350,7 @@
                         type="button" 
                         id="btnCopy"
                         aria-label="Copy Raw Text"
-                        class="px-4 py-2 bg-slate-800/80 light:bg-slate-200 hover:bg-slate-700 light:hover:bg-slate-300 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
+                        class="px-4 py-2 bg-slate-200 dark:bg-slate-800/80 hover:bg-slate-700 :bg-slate-300 border border-slate-700  text-slate-300  rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
                     >
                         <i class="fa-regular fa-copy"></i> <span id="copyBtnText">Copy Raw Text</span>
                     </button>
@@ -372,7 +372,7 @@
                     readonly 
                     placeholder="Extracted content will appear here..." 
                     aria-label="Extracted Content Viewer"
-                    class="w-full h-[450px] bg-slate-950/90 light:bg-slate-900 border border-slate-800 light:border-slate-700 rounded-xl p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none resize-none custom-scroll shadow-inner"
+                    class="w-full h-[450px] bg-slate-900 dark:bg-slate-950/90 border border-slate-800  rounded-xl p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none resize-none custom-scroll shadow-inner"
                 ></textarea>
             </div>
         </section>
@@ -380,7 +380,7 @@
     </main>
 
     <!-- Footer Navigation -->
-    <footer class="border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 py-6 glass-panel">
+    <footer class="border-t border-slate-200 dark:border-slate-800/80 py-6 glass-panel">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
             <!-- Unified Footer Logo + Text Popout -->
             <a href="https://www.linkedin.com/in/rajitha-amarasinghe/" target="_blank" rel="noopener noreferrer" class="footer-brand-popout flex items-center gap-2 group" aria-label="RaSL LinkedIn Profile">
@@ -390,7 +390,7 @@
 
             <div class="flex items-center gap-4 flex-wrap justify-center">
                 <!-- Portfolio Link -->
-                <a href="https://www.rasl.lk" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700" title="RaSL Official Website">
+                <a href="https://www.rasl.lk" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300" title="RaSL Official Website">
                     <i class="fa-solid fa-globe text-cyan-400"></i> www.rasl.lk
                 </a>
                 <a href="https://www.linkedin.com/in/rajitha-amarasinghe/" target="_blank" rel="noopener noreferrer" class="hover:text-blue-400 transition-colors flex items-center gap-1.5" aria-label="LinkedIn">

@@ -102,10 +102,10 @@
         })();
     </script>
 </head>
-<body class="text-slate-200 dark:text-slate-200 light:text-slate-900 font-sans min-h-screen flex flex-col justify-between">
+<body class="text-slate-200 dark:text-slate-200  font-sans min-h-screen flex flex-col justify-between">
 
     <!-- Header Navigation -->
-    <header class="border-b border-slate-800/80 light:border-slate-200 glass-card sticky top-0 z-50">
+    <header class="border-b border-slate-800/80  glass-card sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <a href="https://www.linkedin.com/in/rajitha-amarasinghe/" target="_blank" rel="noopener noreferrer" class="logo-popout block" title="LinkedIn Profile" aria-label="RaSL LinkedIn Profile">
@@ -129,7 +129,7 @@
                     type="button" 
                     id="themeToggleBtnStatic" 
                     onclick="toggleThemeStatic()"
-                    class="p-2 rounded-xl bg-slate-800 light:bg-slate-200 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:text-amber-400 transition-all cursor-pointer"
+                    class="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-700  text-slate-300  hover:text-amber-400 transition-all cursor-pointer"
                     title="Toggle Theme" 
                     aria-label="Toggle Light or Dark Mode"
                 >
@@ -153,7 +153,7 @@
         <section class="glass-card rounded-2xl p-6 shadow-2xl">
             <form id="crawlForm" class="space-y-4" onsubmit="event.preventDefault(); startCrawl();">
                 <div>
-                    <label for="urlInput" class="block text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 uppercase tracking-wider mb-2">
+                    <label for="urlInput" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                         Target Homepage / Root URL
                     </label>
                     <div class="flex flex-col md:flex-row gap-3">
@@ -167,7 +167,7 @@
                                 required 
                                 placeholder="https://example.com" 
                                 aria-label="Target Homepage URL"
-                                class="w-full bg-slate-900/90 light:bg-white border border-slate-700/80 light:border-slate-300 rounded-xl py-3.5 pl-11 pr-4 text-slate-100 light:text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm shadow-inner"
+                                class="w-full bg-white dark:bg-slate-900/90 border border-slate-700/80  rounded-xl py-3.5 pl-11 pr-4 text-slate-100  placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm shadow-inner"
                             >
                         </div>
                         <div class="flex items-center gap-2">
@@ -202,10 +202,10 @@
                         <i id="advIcon" class="fa-solid fa-chevron-right text-[10px] transition-transform"></i> Advanced Crawler Settings
                     </button>
 
-                    <div id="advancedSettings" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-800 light:border-slate-200 mt-3">
+                    <div id="advancedSettings" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-200 dark:border-slate-800 mt-3">
                         <!-- Max Pages Slider -->
                         <div>
-                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 mb-2">
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span>Max Pages Limit</span>
                                 <span id="maxPagesVal" class="text-blue-400 font-mono">25 pages</span>
                             </div>
@@ -221,13 +221,13 @@
                                 aria-valuemax="100"
                                 aria-valuenow="25"
                                 oninput="document.getElementById('maxPagesVal').innerText = this.value + ' pages'"
-                                class="w-full h-2 bg-slate-800 light:bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                             >
                         </div>
 
                         <!-- Max Depth -->
                         <div>
-                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 mb-2">
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span>Crawl Depth Level</span>
                                 <span id="maxDepthVal" class="text-cyan-400 font-mono">3 levels</span>
                             </div>
@@ -243,13 +243,13 @@
                                 aria-valuemax="5"
                                 aria-valuenow="3"
                                 oninput="document.getElementById('maxDepthVal').innerText = this.value + ' levels'"
-                                class="w-full h-2 bg-slate-800 light:bg-slate-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                             >
                         </div>
 
                         <!-- Crawl Delay -->
                         <div>
-                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 mb-2">
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                 <span>Politeness Throttle Delay</span>
                                 <span id="crawlDelayVal" class="text-purple-400 font-mono">300 ms</span>
                             </div>
@@ -265,7 +265,7 @@
                                 aria-valuemax="1000"
                                 aria-valuenow="300"
                                 oninput="document.getElementById('crawlDelayVal').innerText = this.value + ' ms'"
-                                class="w-full h-2 bg-slate-800 light:bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                             >
                         </div>
                     </div>
@@ -278,7 +278,7 @@
             <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-blue-500">
                 <div>
                     <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Discovered Links</p>
-                    <p id="statDiscovered" class="text-2xl font-bold font-mono text-slate-100 dark:text-slate-100 light:text-slate-900 mt-1">0</p>
+                    <p id="statDiscovered" class="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">0</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg">
                     <i class="fa-solid fa-diagram-project"></i>
@@ -288,7 +288,7 @@
             <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-cyan-500">
                 <div>
                     <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Pages Processed</p>
-                    <p id="statCrawled" class="text-2xl font-bold font-mono text-slate-100 dark:text-slate-100 light:text-slate-900 mt-1">0</p>
+                    <p id="statCrawled" class="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">0</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg">
                     <i class="fa-solid fa-file-code"></i>
@@ -298,7 +298,7 @@
             <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-amber-500">
                 <div>
                     <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Skipped / Failed</p>
-                    <p id="statSkipped" class="text-2xl font-bold font-mono text-slate-100 dark:text-slate-100 light:text-slate-900 mt-1">0</p>
+                    <p id="statSkipped" class="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">0</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
                     <i class="fa-solid fa-forward"></i>
@@ -308,7 +308,7 @@
             <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-indigo-500">
                 <div>
                     <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Elapsed Time</p>
-                    <p id="statElapsed" class="text-2xl font-bold font-mono text-slate-100 dark:text-slate-100 light:text-slate-900 mt-1">00:00</p>
+                    <p id="statElapsed" class="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">00:00</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg">
                     <i class="fa-solid fa-stopwatch"></i>
@@ -317,28 +317,28 @@
         </section>
 
         <!-- Dynamic Progress Bar -->
-        <div class="w-full bg-slate-900 light:bg-slate-200 rounded-full h-2.5 overflow-hidden border border-slate-800 light:border-slate-300 relative">
+        <div class="w-full bg-slate-200 dark:bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-800  relative">
             <div id="progressBar" class="bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-500 h-2.5 rounded-full transition-all duration-300 w-0"></div>
         </div>
 
         <!-- Terminal Logs Window -->
         <section class="glass-card rounded-xl p-4">
             <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2 text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 uppercase tracking-wider">
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     <i class="fa-solid fa-terminal text-cyan-400"></i> Real-Time Crawl Logs
                 </div>
                 <button type="button" onclick="clearLogs()" class="text-xs text-slate-500 hover:text-slate-300 transition-colors" aria-label="Clear Console">Clear Console</button>
             </div>
-            <div id="terminalLog" class="h-36 bg-slate-950/90 light:bg-slate-900 rounded-lg p-3 font-mono text-xs text-slate-300 overflow-y-auto terminal-scroll space-y-1 border border-slate-800 light:border-slate-700">
+            <div id="terminalLog" class="h-36 bg-slate-900 dark:bg-slate-950/90 rounded-lg p-3 font-mono text-xs text-slate-300 overflow-y-auto terminal-scroll space-y-1 border border-slate-800 ">
                 <div class="text-slate-500 italic">[SYSTEM] Ready to crawl. Enter a URL above and click 'Start Crawling'.</div>
             </div>
         </section>
 
         <!-- Formatted Output Preview Deck -->
         <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 light:border-slate-200 pb-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div>
-                    <h2 class="text-lg font-bold text-slate-100 dark:text-slate-100 light:text-slate-900 flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <i class="fa-solid fa-file-lines text-blue-400"></i> Extracted Clean Content
                     </h2>
                     <p class="text-xs text-slate-400">Sequential page-by-page text formatted with headers and stripped boilerplate.</p>
@@ -349,7 +349,7 @@
                         type="button" 
                         onclick="copyOutput()" 
                         aria-label="Copy Raw Text"
-                        class="px-3.5 py-2 bg-slate-800 light:bg-slate-200 hover:bg-slate-700 light:hover:bg-slate-300 border border-slate-700 light:border-slate-300 text-slate-200 light:text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        class="px-3.5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-700 :bg-slate-300 border border-slate-700  text-slate-200  rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
                         title="Copy to Clipboard"
                     >
                         <i class="fa-regular fa-copy"></i> Copy Raw Text
@@ -380,7 +380,7 @@
                     readonly 
                     placeholder="Extracted formatted text will stream here automatically in real time..." 
                     aria-label="Extracted Formatted Text Output"
-                    class="w-full h-[400px] bg-slate-950/90 light:bg-slate-900 border border-slate-800 light:border-slate-700 rounded-xl p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none resize-none output-scroll shadow-inner"
+                    class="w-full h-[400px] bg-slate-900 dark:bg-slate-950/90 border border-slate-800  rounded-xl p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none resize-none output-scroll shadow-inner"
                 ></textarea>
                 <div id="copyToast" class="absolute bottom-4 right-4 bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg hidden flex items-center gap-1.5 font-semibold">
                     <i class="fa-solid fa-check"></i> Copied to Clipboard!
@@ -391,7 +391,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-800/60 light:border-slate-200 py-6 glass-card">
+    <footer class="border-t border-slate-200 dark:border-slate-800/60 py-6 glass-card">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
             <!-- Unified Footer Logo + Text Popout -->
             <a href="https://www.linkedin.com/in/rajitha-amarasinghe/" target="_blank" rel="noopener noreferrer" class="footer-brand-popout flex items-center gap-2 group" aria-label="RaSL LinkedIn Profile">
@@ -401,7 +401,7 @@
 
             <div class="flex items-center gap-4 flex-wrap justify-center">
                 <!-- Portfolio Link -->
-                <a href="https://www.rasl.lk" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700" title="RaSL Official Website">
+                <a href="https://www.rasl.lk" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300" title="RaSL Official Website">
                     <i class="fa-solid fa-globe text-cyan-400"></i> www.rasl.lk
                 </a>
                 <a href="https://www.linkedin.com/in/rajitha-amarasinghe/" target="_blank" rel="noopener noreferrer" class="hover:text-blue-400 transition-colors flex items-center gap-1.5" aria-label="LinkedIn">
