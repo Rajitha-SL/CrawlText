@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrawlText - Full-Site Text Extraction & Crawler Tool</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            100: '#e0edff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            accent: '#06b6d4',
+                            purple: '#8b5cf6',
+                        },
+                        dark: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            surface: '#1f293d',
+                            border: '#374151',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(139, 92, 246, 0.12) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .terminal-scroll::-webkit-scrollbar, .output-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .terminal-scroll::-webkit-scrollbar-thumb, .output-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+        .terminal-scroll::-webkit-scrollbar-track, .output-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="text-slate-200 font-sans min-h-screen flex flex-col justify-between">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800/80 glass-card sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-spider text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-300">CrawlText</h1>
+                    <p class="text-xs text-slate-400">Full-Site Text Extraction & Crawler Engine</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <span id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                    <span class="w-2 h-2 rounded-full bg-slate-500"></span> IDLE
+                </span>
+                <a href="https://github.com/Rajitha-SL/CrawlText" target="_blank" class="text-slate-400 hover:text-white transition-colors text-lg" title="GitHub Repository">
+                    <i class="fa-brands fa-github"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-6">
+
+        <!-- Input & Configuration Card -->
+        <section class="glass-card rounded-2xl p-6 shadow-2xl">
+            <form id="crawlForm" class="space-y-4" onsubmit="event.preventDefault(); startCrawl();">
+                <div>
+                    <label for="urlInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                        Target Homepage / Root URL
+                    </label>
+                    <div class="relative flex items-center">
+                        <div class="absolute left-4 text-slate-400">
+                            <i class="fa-solid fa-globe"></i>
+                        </div>
+                        <input 
+                            type="url" 
+                            id="urlInput" 
+                            required 
+                            placeholder="https://example.com" 
+                            class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-3.5 pl-11 pr-36 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm shadow-inner"
+                        >
+                        <div class="absolute right-2 flex items-center gap-2">
+                            <button 
+                                type="submit" 
+                                id="btnStart"
+                                class="px-5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold text-sm rounded-lg shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                            >
+                                <i class="fa-solid fa-play text-xs"></i> Start Crawling
+                            </button>
+                            <button 
+                                type="button" 
+                                id="btnStop" 
+                                onclick="stopCrawl()" 
+                                disabled
+                                class="px-4 py-2.5 bg-rose-600/80 hover:bg-rose-500 text-white font-semibold text-sm rounded-lg shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hidden"
+                            >
+                                <i class="fa-solid fa-stop text-xs"></i> Abort
+                            </button>
+                        </div>
+                    </div>
+                    <p id="urlError" class="text-xs text-rose-400 mt-1 hidden font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-circle-exclamation"></i> Please enter a valid http:// or https:// URL.
+                    </p>
+                </div>
+
+                <!-- Advanced Options Toggle -->
+                <div class="pt-2">
+                    <button type="button" onclick="toggleAdvanced()" class="text-xs text-slate-400 hover:text-blue-400 flex items-center gap-2 font-medium transition-colors cursor-pointer">
+                        <i id="advIcon" class="fa-solid fa-chevron-right text-[10px] transition-transform"></i> Advanced Crawler Settings
+                    </button>
+
+                    <div id="advancedSettings" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-800 mt-3">
+                        <!-- Max Pages Slider -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 mb-2">
+                                <span>Max Pages Limit</span>
+                                <span id="maxPagesVal" class="text-blue-400 font-mono">50 pages</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                id="maxPages" 
+                                min="5" 
+                                max="100" 
+                                value="50" 
+                                step="5"
+                                oninput="document.getElementById('maxPagesVal').innerText = this.value + ' pages'"
+                                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            >
+                        </div>
+
+                        <!-- Max Depth -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 mb-2">
+                                <span>Crawl Depth Level</span>
+                                <span id="maxDepthVal" class="text-cyan-400 font-mono">3 levels</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                id="maxDepth" 
+                                min="1" 
+                                max="5" 
+                                value="3" 
+                                step="1"
+                                oninput="document.getElementById('maxDepthVal').innerText = this.value + ' levels'"
+                                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                            >
+                        </div>
+
+                        <!-- Crawl Delay -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs font-semibold text-slate-300 mb-2">
+                                <span>Politeness Throttle Delay</span>
+                                <span id="crawlDelayVal" class="text-purple-400 font-mono">300 ms</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                id="crawlDelay" 
+                                min="100" 
+                                max="1000" 
+                                value="300" 
+                                step="50"
+                                oninput="document.getElementById('crawlDelayVal').innerText = this.value + ' ms'"
+                                class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Live Status Metrics Dashboard -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-blue-500">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Discovered Links</p>
+                    <p id="statDiscovered" class="text-2xl font-bold font-mono text-white mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-diagram-project"></i>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-cyan-500">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Pages Processed</p>
+                    <p id="statCrawled" class="text-2xl font-bold font-mono text-white mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-file-code"></i>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-amber-500">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Skipped / Failed</p>
+                    <p id="statSkipped" class="text-2xl font-bold font-mono text-white mt-1">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-forward"></i>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-indigo-500">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Elapsed Time</p>
+                    <p id="statElapsed" class="text-2xl font-bold font-mono text-white mt-1">00:00</p>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-stopwatch"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Progress Bar -->
+        <div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-800 relative">
+            <div id="progressBar" class="bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-500 h-2.5 rounded-full transition-all duration-300 w-0"></div>
+        </div>
+
+        <!-- Terminal Logs Window -->
+        <section class="glass-card rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <i class="fa-solid fa-terminal text-cyan-400"></i> Real-Time Crawl Logs
+                </div>
+                <button type="button" onclick="clearLogs()" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Clear Console</button>
+            </div>
+            <div id="terminalLog" class="h-36 bg-slate-950/90 rounded-lg p-3 font-mono text-xs text-slate-300 overflow-y-auto terminal-scroll space-y-1 border border-slate-800">
+                <div class="text-slate-500 italic">[SYSTEM] Ready to crawl. Enter a URL above and click 'Start Crawling'.</div>
+            </div>
+        </section>
+
+        <!-- Formatted Output Preview Deck -->
+        <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-lines text-blue-400"></i> Extracted Clean Content
+                    </h2>
+                    <p class="text-xs text-slate-400">Sequential page-by-page text formatted with headers and stripped boilerplate.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <button 
+                        type="button" 
+                        onclick="copyOutput()" 
+                        class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        title="Copy to Clipboard"
+                    >
+                        <i class="fa-regular fa-copy"></i> Copy Raw Text
+                    </button>
+                    <button 
+                        type="button" 
+                        onclick="downloadFile('txt')" 
+                        class="px-3.5 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                        <i class="fa-solid fa-download"></i> Download .txt
+                    </button>
+                    <button 
+                        type="button" 
+                        onclick="downloadFile('md')" 
+                        class="px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                        <i class="fa-solid fa-file-code"></i> Download .md
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Preview Monospace Area -->
+            <div class="relative">
+                <textarea 
+                    id="outputTextarea" 
+                    readonly 
+                    placeholder="Extracted formatted text will stream here automatically in real time..." 
+                    class="w-full h-[400px] bg-slate-950/90 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none resize-none output-scroll shadow-inner"
+                ></textarea>
+                <div id="copyToast" class="absolute bottom-4 right-4 bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg hidden flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-check"></i> Copied to Clipboard!
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/60 py-4 text-center text-xs text-slate-500 glass-card">
+        <p>CrawlText Engine &bull; Developed for High Performance Web Scraping & Content Mining</p>
+    </footer>
+
+    <!-- JavaScript SSE & Logic Engine -->
+    <script>
+        let evtSource = null;
+        let timerInterval = null;
+        let startTime = 0;
+        let totalExtractedWords = 0;
+
+        function toggleAdvanced() {
+            const adv = document.getElementById('advancedSettings');
+            const icon = document.getElementById('advIcon');
+            adv.classList.toggle('hidden');
+            icon.classList.toggle('rotate-90');
+        }
+
+        function clearLogs() {
+            document.getElementById('terminalLog').innerHTML = '';
+        }
+
+        function appendLog(level, message) {
+            const consoleEl = document.getElementById('terminalLog');
+            const timeStr = new Date().toLocaleTimeString();
+            
+            let colorClass = 'text-slate-300';
+            if (level === 'INFO') colorClass = 'text-blue-400';
+            if (level === 'CRAWL') colorClass = 'text-cyan-400';
+            if (level === 'WARN') colorClass = 'text-amber-400';
+            if (level === 'ERROR') colorClass = 'text-rose-400 font-semibold';
+            if (level === 'SUCCESS') colorClass = 'text-emerald-400 font-semibold';
+
+            const logLine = document.createElement('div');
+            logLine.className = 'font-mono';
+            logLine.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="${colorClass}">[${level}]</span> ${escapeHtml(message)}`;
+            
+            consoleEl.appendChild(logLine);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function setStatus(status, type = 'idle') {
+            const badge = document.getElementById('statusBadge');
+            let colorDot = 'bg-slate-500';
+            let badgeStyle = 'bg-slate-800 text-slate-400 border-slate-700';
+
+            if (type === 'crawling') {
+                colorDot = 'bg-cyan-400 animate-ping';
+                badgeStyle = 'bg-cyan-950/80 text-cyan-300 border-cyan-700/60';
+            } else if (type === 'completed') {
+                colorDot = 'bg-emerald-400';
+                badgeStyle = 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60';
+            } else if (type === 'error') {
+                colorDot = 'bg-rose-500';
+                badgeStyle = 'bg-rose-950/80 text-rose-300 border-rose-700/60';
+            } else if (type === 'aborted') {
+                colorDot = 'bg-amber-500';
+                badgeStyle = 'bg-amber-950/80 text-amber-300 border-amber-700/60';
+            }
+
+            badge.className = `inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${badgeStyle}`;
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full ${colorDot}"></span> ${status.toUpperCase()}`;
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const seconds = Math.floor((Date.now() - startTime) / 1000);
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                document.getElementById('statElapsed').innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function startCrawl() {
+            const urlInput = document.getElementById('urlInput');
+            const urlError = document.getElementById('urlError');
+            const targetUrl = urlInput.value.trim();
+
+            if (!targetUrl || (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://'))) {
+                urlError.classList.remove('hidden');
+                return;
+            }
+            urlError.classList.add('hidden');
+
+            const maxPages = document.getElementById('maxPages').value;
+            const maxDepth = document.getElementById('maxDepth').value;
+            const crawlDelay = document.getElementById('crawlDelay').value;
+
+            // Reset UI state
+            document.getElementById('statDiscovered').innerText = '0';
+            document.getElementById('statCrawled').innerText = '0';
+            document.getElementById('statSkipped').innerText = '0';
+            document.getElementById('statElapsed').innerText = '00:00';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('outputTextarea').value = '';
+            clearLogs();
+
+            // Toggle buttons
+            document.getElementById('btnStart').classList.add('hidden');
+            const btnStop = document.getElementById('btnStop');
+            btnStop.classList.remove('hidden');
+            btnStop.disabled = false;
+
+            setStatus('Crawling...', 'crawling');
+            startTimer();
+
+            // Construct SSE Endpoint URL
+            const sseUrl = `/api/crawl/stream?url=${encodeURIComponent(targetUrl)}&max_pages=${maxPages}&max_depth=${maxDepth}&crawl_delay=${crawlDelay}`;
+            
+            if (evtSource) {
+                evtSource.close();
+            }
+
+            evtSource = new EventSource(sseUrl);
+
+            evtSource.addEventListener('log', (e) => {
+                const data = JSON.parse(e.data);
+                appendLog(data.level, data.message);
+            });
+
+            evtSource.addEventListener('progress', (e) => {
+                const data = JSON.parse(e.data);
+                document.getElementById('statCrawled').innerText = data.crawled;
+                document.getElementById('statDiscovered').innerText = data.discovered;
+                document.getElementById('statSkipped').innerText = data.skipped;
+
+                const pct = Math.min(100, Math.round((data.crawled / maxPages) * 100));
+                document.getElementById('progressBar').style.width = pct + '%';
+            });
+
+            evtSource.addEventListener('page_result', (e) => {
+                const data = JSON.parse(e.data);
+                const textarea = document.getElementById('outputTextarea');
+                textarea.value += data.formatted_text;
+                textarea.scrollTop = textarea.scrollHeight;
+            });
+
+            evtSource.addEventListener('done', (e) => {
+                stopTimer();
+                setStatus('Completed', 'completed');
+                appendLog('SUCCESS', 'Crawling job completed successfully!');
+                closeCrawlSession();
+            });
+
+            evtSource.addEventListener('error', (e) => {
+                stopTimer();
+                let errMsg = 'Connection closed or server error.';
+                try {
+                    const parsed = JSON.parse(e.data);
+                    if (parsed.message) errMsg = parsed.message;
+                } catch(err) {}
+                
+                setStatus('Failed', 'error');
+                appendLog('ERROR', errMsg);
+                closeCrawlSession();
+            });
+        }
+
+        function stopCrawl() {
+            fetch('/api/crawl/cancel', { method: 'POST' })
+                .then(() => {
+                    appendLog('WARN', 'User triggered crawl abort signal.');
+                    setStatus('Aborted', 'aborted');
+                    closeCrawlSession();
+                })
+                .catch(err => console.error(err));
+        }
+
+        function closeCrawlSession() {
+            if (evtSource) {
+                evtSource.close();
+                evtSource = null;
+            }
+            stopTimer();
+            document.getElementById('btnStart').classList.remove('hidden');
+            const btnStop = document.getElementById('btnStop');
+            btnStop.classList.add('hidden');
+            btnStop.disabled = true;
+        }
+
+        function copyOutput() {
+            const textarea = document.getElementById('outputTextarea');
+            if (!textarea.value) return;
+
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                const toast = document.getElementById('copyToast');
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2500);
+            });
+        }
+
+        function downloadFile(format) {
+            const content = document.getElementById('outputTextarea').value;
+            if (!content) return;
+
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `crawl_output_${Date.now()}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
