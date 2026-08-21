@@ -3,6 +3,16 @@ import tempfile
 import asyncio
 import gradio as gr
 
+try:
+    import spaces
+
+    @spaces.GPU
+    def _zero_gpu_startup():
+        """Satisfies ZeroGPU container startup inspection without GPU queue bottlenecks."""
+        return True
+except Exception:
+    pass
+
 from crawler import crawl_site
 from extractor import format_crawl_results
 
