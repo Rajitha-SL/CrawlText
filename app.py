@@ -97,4 +97,4 @@ with gr.Blocks(
     )
 
 demo.queue()
-demo.launch()
+demo.launch(ssr_mode=False)
