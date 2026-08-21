@@ -36,11 +36,46 @@ const outputTextarea = document.getElementById("outputTextarea");
 const btnCopy = document.getElementById("btnCopy");
 const copyBtnText = document.getElementById("copyBtnText");
 const btnDownload = document.getElementById("btnDownload");
+const btnReset = document.getElementById("btnReset");
+
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const themeToggleIcon = document.getElementById("themeToggleIcon");
 
 let timerInterval = null;
 let startTime = 0;
 let gradioClient = null;
 let currentFormattedText = "";
+let currentTargetDomain = "extracted";
+
+// Theme Toggle Logic
+function updateThemeIcon(isLight) {
+    if (isLight) {
+        themeToggleIcon.className = "fa-solid fa-moon text-indigo-400 text-sm";
+        themeToggleBtn.title = "Switch to Dark Mode";
+    } else {
+        themeToggleIcon.className = "fa-solid fa-sun text-amber-400 text-sm";
+        themeToggleBtn.title = "Switch to Light Mode";
+    }
+}
+
+// Initial Theme Check
+const initialTheme = localStorage.getItem("theme") || "dark";
+updateThemeIcon(initialTheme === "light");
+
+themeToggleBtn.addEventListener("click", () => {
+    const isDark = document.documentElement.classList.contains("dark");
+    if (isDark) {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+        localStorage.setItem("theme", "light");
+        updateThemeIcon(true);
+    } else {
+        document.documentElement.classList.remove("light");
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+        updateThemeIcon(false);
+    }
+});
 
 // Advanced Controls Drawer Toggle
 toggleAdvBtn.addEventListener("click", () => {
@@ -48,19 +83,30 @@ toggleAdvBtn.addEventListener("click", () => {
     advChevron.classList.toggle("rotate-180");
 });
 
-// Slider Input Value Feedback
+// Slider Input Value & ARIA Feedback
 maxPagesInput.addEventListener("input", (e) => {
-    maxPagesDisplay.innerText = `${e.target.value} pages`;
+    const val = e.target.value;
+    maxPagesDisplay.innerText = `${val} pages`;
+    maxPagesInput.setAttribute("aria-valuenow", val);
 });
 
 crawlDelayInput.addEventListener("input", (e) => {
-    delayDisplay.innerText = `${parseFloat(e.target.value).toFixed(1)} seconds`;
+    const val = parseFloat(e.target.value).toFixed(1);
+    delayDisplay.innerText = `${val} seconds`;
+    crawlDelayInput.setAttribute("aria-valuenow", val);
 });
 
-// Helper: Normalize URL format
-function normalizeInputUrl(rawUrl) {
-    let url = rawUrl.trim();
-    if (!url) return "";
+// Aggressive Input Sanitization
+function sanitizeUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== "string") return "";
+
+    // 1. Strip zero-width & invisible whitespace characters
+    let url = rawUrl.trim().replace(/[​-‍﻿]/g, "");
+
+    // 2. Strip trailing slashes
+    url = url.replace(/\/+$/, "");
+
+    // 3. Auto-prefix https:// if protocol omitted
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
         url = "https://" + url;
     }
@@ -85,8 +131,27 @@ function stopTimer() {
     clearInterval(timerInterval);
 }
 
-// Helper: Show Error Alert
-function showError(title, msg) {
+// Granular Error Handler
+function showGranularError(err, url) {
+    let title = "Extraction Failed";
+    let msg = err.message || "Failed to communicate with Hugging Face Space backend.";
+
+    const errStr = String(err).toLowerCase();
+
+    if (errStr.includes("403") || errStr.includes("forbidden") || errStr.includes("cloudflare")) {
+        title = "🛡️ Target Security Blocked";
+        msg = `The target site (${url}) blocked automated extraction (Cloudflare / WAF protection).`;
+    } else if (errStr.includes("404") || errStr.includes("not found")) {
+        title = "🔍 Page Not Found (404)";
+        msg = `The target URL (${url}) returned a 404 Not Found error.`;
+    } else if (errStr.includes("ssrf") || errStr.includes("private") || errStr.includes("loopback")) {
+        title = "🛡️ SSRF Security Blocked";
+        msg = "Internal subnets, localhost, and cloud metadata IPs are blocked for security.";
+    } else if (errStr.includes("timeout") || errStr.includes("timed out")) {
+        title = "⏱️ Connection Timed Out";
+        msg = "The target server took too long to respond.";
+    }
+
     errorTitle.innerText = title;
     errorMessage.innerText = msg;
     errorAlert.classList.remove("hidden");
@@ -107,16 +172,43 @@ async function getClient() {
     return gradioClient;
 }
 
+// Restore Transient Session Cache on Page Load
+function restoreSessionCache() {
+    try {
+        const cached = sessionStorage.getItem("crawltext_session");
+        if (cached) {
+            const data = JSON.parse(cached);
+            if (data.formattedText && data.formattedText.trim()) {
+                currentFormattedText = data.formattedText;
+                currentTargetDomain = data.domain || "extracted";
+                urlInput.value = data.url || "";
+                outputTextarea.value = data.formattedText;
+
+                statDomain.innerText = data.domain || "-";
+                statPages.innerText = data.pages || 1;
+                statChars.innerText = data.size || "0 KB";
+                statStatus.innerText = "Restored";
+
+                metricsGrid.classList.remove("hidden");
+                resultsPanel.classList.remove("hidden");
+            }
+        }
+    } catch (e) {
+        console.warn("Could not restore session cache:", e);
+    }
+}
+
+restoreSessionCache();
+
 // Main Execution Handler
 crawlForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     dismissError();
 
-    const rawUrl = urlInput.value;
-    const url = normalizeInputUrl(rawUrl);
+    const url = sanitizeUrl(urlInput.value);
 
     if (!url) {
-        showError("Invalid URL", "Please enter a valid target URL.");
+        showGranularError(new Error("Please enter a valid target URL."), "");
         return;
     }
 
@@ -124,10 +216,11 @@ crawlForm.addEventListener("submit", async (e) => {
     const maxPages = parseInt(maxPagesInput.value, 10);
     const delay = parseFloat(crawlDelayInput.value);
 
-    // Update UI State for Active Crawl
+    // Immediate Execution State Feedback (Pulsing Disabled Button)
     btnStart.disabled = true;
+    btnStart.classList.add("opacity-60", "cursor-not-allowed", "animate-pulse");
     btnIcon.className = "fa-solid fa-spinner animate-spin text-xs";
-    btnText.innerText = "Extracting...";
+    btnText.innerText = "Crawling...";
     
     statusPanel.classList.remove("hidden");
     metricsGrid.classList.add("hidden");
@@ -158,10 +251,9 @@ crawlForm.addEventListener("submit", async (e) => {
         const data = response.data || response;
         const summaryMarkdown = data[0] || "";
         const formattedText = data[1] || "";
-        const fileData = data[2] || null;
 
         if (!formattedText || formattedText.startsWith("❌") || formattedText.startsWith("⚠️")) {
-            showError("Crawl Execution Alert", summaryMarkdown || formattedText || "No content extracted.");
+            showGranularError(new Error(summaryMarkdown || formattedText || "No content extracted."), url);
             return;
         }
 
@@ -169,24 +261,37 @@ crawlForm.addEventListener("submit", async (e) => {
         outputTextarea.value = formattedText;
 
         // Extract Metric Info
-        let domainName = "-";
+        let domainName = "extracted";
         try {
             domainName = new URL(url).hostname;
         } catch (err) {
             domainName = url;
         }
+        currentTargetDomain = domainName;
 
-        // Count extracted pages by dividing header separators
         const pageMatches = (formattedText.match(/PAGE:/g) || []).length;
-        const sizeKB = (new Blob([formattedText]).size / 1024).toFixed(1);
+        const sizeKB = (new Blob([formattedText]).size / 1024).toFixed(1) + " KB";
 
         statDomain.innerText = domainName;
         statPages.innerText = pageMatches || 1;
-        statChars.innerText = `${sizeKB} KB`;
+        statChars.innerText = sizeKB;
         statStatus.innerText = "Completed";
 
         progressBar.style.width = "100%";
         statusMessage.innerText = "Extraction complete!";
+
+        // Save Transient State to sessionStorage
+        try {
+            sessionStorage.setItem("crawltext_session", JSON.stringify({
+                url: url,
+                domain: domainName,
+                pages: pageMatches || 1,
+                size: sizeKB,
+                formattedText: formattedText
+            }));
+        } catch (e) {
+            console.warn("Failed to write to sessionStorage:", e);
+        }
 
         // Reveal Metrics & Output Panels
         metricsGrid.classList.remove("hidden");
@@ -195,13 +300,31 @@ crawlForm.addEventListener("submit", async (e) => {
 
     } catch (err) {
         console.error("Crawl error:", err);
-        showError("Extraction Failed", err.message || "Failed to communicate with Hugging Face Space backend.");
+        showGranularError(err, url);
     } finally {
         stopTimer();
         btnStart.disabled = false;
+        btnStart.classList.remove("opacity-60", "cursor-not-allowed", "animate-pulse");
         btnIcon.className = "fa-solid fa-bolt text-xs";
         btnText.innerText = "Start Crawl";
     }
+});
+
+// Post-Crawl Reset / New Crawl Action
+btnReset.addEventListener("click", () => {
+    currentFormattedText = "";
+    currentTargetDomain = "extracted";
+    outputTextarea.value = "";
+    urlInput.value = "";
+
+    sessionStorage.removeItem("crawltext_session");
+
+    metricsGrid.classList.add("hidden");
+    resultsPanel.classList.add("hidden");
+    statusPanel.classList.add("hidden");
+    dismissError();
+
+    urlInput.focus();
 });
 
 // Copy to Clipboard Action
@@ -209,23 +332,21 @@ btnCopy.addEventListener("click", () => {
     if (!currentFormattedText) return;
     navigator.clipboard.writeText(currentFormattedText).then(() => {
         copyBtnText.innerText = "Copied!";
-        btnCopy.classList.remove("bg-slate-800");
         btnCopy.classList.add("bg-emerald-600/30", "border-emerald-500/50", "text-emerald-300");
 
         setTimeout(() => {
             copyBtnText.innerText = "Copy Raw Text";
-            btnCopy.classList.add("bg-slate-800");
             btnCopy.classList.remove("bg-emerald-600/30", "border-emerald-500/50", "text-emerald-300");
         }, 2000);
     });
 });
 
-// Download .TXT File Action
+// Dynamic File Naming Download Action (e.g. CrawlText_example-com.txt)
 btnDownload.addEventListener("click", () => {
     if (!currentFormattedText) return;
 
-    const domainName = statDomain.innerText !== "-" ? statDomain.innerText.replace(/\./g, "_") : "extracted";
-    const fileName = `crawltext_${domainName}_${Date.now()}.txt`;
+    const safeDomain = currentTargetDomain.replace(/[^a-zA-Z0-9-]/g, "-");
+    const fileName = `CrawlText_${safeDomain}.txt`;
 
     const blob = new Blob([currentFormattedText], { type: "text/plain;charset=utf-8" });
     const blobUrl = URL.createObjectURL(blob);
