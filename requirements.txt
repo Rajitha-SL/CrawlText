@@ -7,3 +7,5 @@ beautifulsoup4
 lxml
 sse-starlette
 pydantic
+huggingface_hub<0.26.0
+spaces
