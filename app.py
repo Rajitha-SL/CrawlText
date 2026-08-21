@@ -65,8 +65,8 @@ with gr.Blocks(
             )
             max_pages = gr.Slider(
                 minimum=1,
-                maximum=50,
-                value=15,
+                maximum=100,
+                value=25,
                 step=1,
                 label="Max Pages to Crawl"
             )
