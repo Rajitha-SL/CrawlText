@@ -7,6 +7,7 @@ sdk: gradio
 sdk_version: 5.20.0
 app_file: app.py
 pinned: false
+space_hardware: cpu-basic
 ---
 
 # CrawlText: Full-Site Text Extraction & Web Crawler Engine
