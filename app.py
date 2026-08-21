@@ -2,26 +2,12 @@ import os
 import tempfile
 import asyncio
 import gradio as gr
-import spaces
 
 from crawler import crawl_site
 from extractor import format_crawl_results
 
-def _crawl_worker(url: str, max_pages: int, delay: float):
-    """Synchronous worker that manages its own clean event loop for ZeroGPU."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        results = loop.run_until_complete(
-            crawl_site(start_url=url, max_pages=int(max_pages), delay=float(delay))
-        )
-        return results
-    finally:
-        loop.close()
-
-@spaces.GPU(duration=60)
-def handle_crawl(url: str, max_pages: int, delay: float):
-    """ZeroGPU decorated endpoint that executes the crawling task."""
+async def handle_crawl(url: str, max_pages: int, delay: float):
+    """Clean async crawl handler running on CPU without ZeroGPU queue bottlenecks."""
     if not url or not url.strip():
         return "⚠️ Please enter a valid URL.", "", None
 
@@ -30,7 +16,11 @@ def handle_crawl(url: str, max_pages: int, delay: float):
         url = "https://" + url
 
     try:
-        results = _crawl_worker(url, max_pages, delay)
+        results = await crawl_site(
+            start_url=url,
+            max_pages=int(max_pages),
+            delay=float(delay)
+        )
 
         if not results:
             return "❌ No pages were found or extracted.", "", None
@@ -49,9 +39,12 @@ def handle_crawl(url: str, max_pages: int, delay: float):
         return f"❌ Error during crawl: {str(e)}", "", None
 
 # Gradio Interface Construction
-with gr.Blocks(title="RaSL CrawlText") as demo:
+with gr.Blocks(
+    title="RaSL CrawlText",
+    theme=gr.themes.Soft(primary_hue="blue", secondary_hue="cyan")
+) as demo:
     gr.Markdown("# 🕸️ RaSL CrawlText - Web Scraper")
-    gr.Markdown("Extract text content from multiple pages of a target website.")
+    gr.Markdown("Extract clean text content from multiple pages of a target website. **Logic and Discipline**.")
 
     with gr.Row():
         with gr.Column(scale=1):
@@ -63,7 +56,7 @@ with gr.Blocks(title="RaSL CrawlText") as demo:
             max_pages = gr.Slider(
                 minimum=1,
                 maximum=50,
-                value=10,
+                value=15,
                 step=1,
                 label="Max Pages to Crawl"
             )
@@ -82,7 +75,8 @@ with gr.Blocks(title="RaSL CrawlText") as demo:
             output_box = gr.Textbox(
                 label="Extracted Content",
                 lines=16,
-                max_lines=25
+                max_lines=25,
+                show_copy_button=True
             )
 
     crawl_btn.click(
@@ -93,4 +87,8 @@ with gr.Blocks(title="RaSL CrawlText") as demo:
     )
 
 demo.queue()
-demo.launch()
+demo.launch(
+    server_name="0.0.0.0",
+    server_port=7860,
+    ssr_mode=False
+)
