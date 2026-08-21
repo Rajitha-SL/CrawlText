@@ -1,4 +1,4 @@
-gradio==4.44.1
+gradio==5.20.0
 fastapi
 uvicorn
 httpx
@@ -7,4 +7,3 @@ beautifulsoup4
 lxml
 sse-starlette
 pydantic
-huggingface_hub<0.26.0
