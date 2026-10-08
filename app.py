@@ -83,7 +83,7 @@ async def process_with_ai(provider: str, api_key: str, operation: str, text: str
         return "There is no extracted text to process."
     if len(text.encode("utf-8")) > 60000:
         return "Input is too large for a single AI request (60 KB limit). Select a smaller excerpt."
-    prompt = TASKS[operation] + "\\n\\nSource text:\\n" + text
+    prompt = TASKS[operation] + "\n\nSource text:\n" + text
     model = DEFAULT_MODELS[provider]
     headers = {"Content-Type": "application/json"}
     if provider == "Google Gemini":
