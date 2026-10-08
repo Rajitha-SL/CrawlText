@@ -166,7 +166,10 @@ with gr.Blocks(
     ai_submit = gr.Button("Run AI with my own key")
     ai_output = gr.Textbox(label="AI processed text", lines=12, show_copy_button=True)
     gr.Markdown("CrawlText does not supply paid AI tokens. Provider charges, usage limits and data policies belong to your account. The key is sent through the hosting backend for this operation and is not deliberately written to application storage. Infrastructure/provider retention policies may apply.")
-    ai_submit.click(fn=process_with_ai, inputs=[ai_provider, ai_key, ai_task, output_box], outputs=[ai_output], api_name="process_with_ai", concurrency_limit=2)
+    async def run_ai_and_clear(provider, api_key, operation, source_text):
+        result = await process_with_ai(provider, api_key, operation, source_text)
+        return result, ""
+    ai_submit.click(fn=run_ai_and_clear, inputs=[ai_provider, ai_key, ai_task, output_box], outputs=[ai_output, ai_key], api_name="process_with_ai", concurrency_limit=2)
 
     crawl_btn.click(
         fn=handle_crawl,
