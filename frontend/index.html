@@ -83,13 +83,20 @@
         }
         .logo-popout {
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
             border-radius: 0.75rem;
             display: inline-block;
+            transform-origin: top left;
+            position: relative;
+            z-index: 1;
         }
-        .logo-popout:hover {
-            transform: none;
-            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+        .logo-popout:hover, .logo-popout:focus-visible {
+            transform: translateY(2px) scale(1.12);
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.30);
+            z-index: 10;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .logo-popout { transition: none; }
         }
         .footer-brand-popout {
             cursor: pointer;
