@@ -20,6 +20,7 @@ const statusPanel = document.getElementById("statusPanel");
 const statusMessage = document.getElementById("statusMessage");
 const statusTimer = document.getElementById("statusTimer");
 const progressBar = document.getElementById("progressBar");
+const statusSpinner = document.getElementById("statusSpinner");
 
 const errorAlert = document.getElementById("errorAlert");
 const errorTitle = document.getElementById("errorTitle");
@@ -154,7 +155,7 @@ function stopTimer() {
 // Granular Error Handler
 function showGranularError(err, url) {
     let title = "Extraction Failed";
-    let msg = err.message || "Failed to communicate with Hugging Face Space backend.";
+    let msg = err?.message || "Failed to communicate with Hugging Face Space backend.";
 
     const errStr = String(err).toLowerCase();
 
@@ -233,7 +234,7 @@ crawlForm.addEventListener("submit", async (e) => {
     }
 
     urlInput.value = url;
-    const maxPages = parseInt(maxPagesInput.value, 10);
+    const maxPages = Math.min(100, Math.max(1,parseInt(maxPagesInput.value, 10) || 25));
     const delay = parseFloat(crawlDelayInput.value);
 
     // Immediate Execution State Feedback (Pulsing Disabled Button)
@@ -243,6 +244,8 @@ crawlForm.addEventListener("submit", async (e) => {
     btnText.innerText = "Crawling...";
     
     statusPanel.classList.remove("hidden");
+    if(statusSpinner) statusSpinner.classList.remove("hidden");
+    progressBar.style.width = "0%";
     metricsGrid.classList.add("hidden");
     resultsPanel.classList.add("hidden");
     startTimer();
@@ -299,6 +302,7 @@ crawlForm.addEventListener("submit", async (e) => {
 
         progressBar.style.width = "100%";
         statusMessage.innerText = "Extraction complete!";
+        if(statusSpinner) statusSpinner.classList.add("hidden");
 
         // Save Transient State to sessionStorage
         try {
@@ -322,6 +326,7 @@ crawlForm.addEventListener("submit", async (e) => {
         console.error("Crawl error:", err);
         showGranularError(err, url);
     } finally {
+        if(statusSpinner) statusSpinner.classList.add("hidden");
         stopTimer();
         btnStart.disabled = false;
         btnStart.classList.remove("opacity-60", "cursor-not-allowed", "animate-pulse");
@@ -342,6 +347,7 @@ btnReset.addEventListener("click", () => {
     metricsGrid.classList.add("hidden");
     resultsPanel.classList.add("hidden");
     statusPanel.classList.add("hidden");
+    if(statusSpinner) statusSpinner.classList.add("hidden");
     dismissError();
 
     urlInput.focus();
@@ -419,4 +425,36 @@ if(aiKey&&btnRunAI){
  crawlForm.addEventListener("submit",clearAi);
  if(btnReset)btnReset.addEventListener("click",clearAi);
  window.addEventListener("pagehide",()=>{aiKey.value="";});
+}
+
+/* Client-side Word (.docx) and PDF exports; no additional backend or paid tokens. */
+async function createExport(format){
+  if(!currentFormattedText.trim())return;
+  const text=currentFormattedText;
+  const name="CrawlText_"+currentTargetDomain.replace(/[^a-zA-Z0-9-]/g,"-");
+  if(format==="docx"){
+    if(!window.docx?.Document||!window.docx?.Packer)throw new Error("Word exporter unavailable");
+    const paragraphs=text.split(/\r?\n/).map(line=>new window.docx.Paragraph({text:line||" ",spacing:{after:90}}));
+    const doc=new window.docx.Document({sections:[{properties:{},children:paragraphs}]});
+    const blob=await window.docx.Packer.toBlob(doc);
+    saveExportBlob(blob,name+".docx");
+  }else if(format==="pdf"){
+    if(!window.jspdf?.jsPDF)throw new Error("PDF exporter unavailable");
+    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",compress:true});
+    const margin=18,width=210-2*margin,lineHeight=5.5,bottom=277;
+    let y=22;pdf.setFont("helvetica","normal");pdf.setFontSize(10);
+    for(const line of text.split(/\r?\n/)){
+      const wrapped=pdf.splitTextToSize(line||" ",width);
+      for(const part of wrapped){
+        if(y+lineHeight>bottom){pdf.addPage();y=22;}
+        pdf.text(part,margin,y);y+=lineHeight;
+      }
+    }
+    pdf.save(name+".pdf");
+  }
+}
+function saveExportBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
+for(const fmt of ["docx","pdf"]){
+  const btn=document.getElementById(fmt==="docx"?"btnWord":"btnPdf");
+  if(btn)btn.addEventListener("click",async()=>{if(!currentFormattedText.trim())return;btn.disabled=true;const label=btn.textContent;btn.textContent="Preparing…";try{await createExport(fmt)}catch(err){showGranularError(new Error(fmt.toUpperCase()+" export failed. Try again or use TXT."),urlInput.value)}finally{btn.disabled=false;btn.textContent=label}});
 }

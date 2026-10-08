@@ -20,3 +20,12 @@ Public beta candidate; not yet certified as production-ready.
 - Frontend visual accessibility and full mobile functionality require browser testing.
 
 **Do not market this as a fully hardened, unrestricted production crawler until security and load tests pass.**
+
+## Follow-up: export and completion behavior
+- Frontend can select up to 100 pages, with 50 as the default.
+- TXT, Word (.docx), and PDF export actions are available. DOCX/PDF rely on browser-loaded libraries, so test under network restrictions.
+- Progress spinner stops on completion, error, or reset.
+- RaSL tagline updated to LOGIC • DISCIPLINE • EXECUTION.
+- Existing embedded logo is displayed larger and its outer dark frame removed. The newly uploaded logo image is not yet integrated into the repository; do not claim that the exact new asset is installed.
+- PDF export uses standard PDF fonts that may not support all Sinhala, Japanese, or other Unicode glyphs. Validate multilingual exports before claiming full language support.
+- Product must not be marked "ship-ready" until production end-to-end testing, security hardening, export tests and logo replacement are complete.
