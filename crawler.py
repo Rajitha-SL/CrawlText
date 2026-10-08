@@ -151,7 +151,34 @@ class AsyncCrawler:
                 "Accept-Language": "en-US,en;q=0.5",
             }
             
-            # Never follow redirects automatically: redirect targets require their own security validation.\n            async with client.stream('GET', url, headers=headers, follow_redirects=False, timeout=12.0) as response:\n                if response.is_redirect:\n                    await self._emit('log', {'level':'WARN', 'message':f'Redirect skipped for {url}'})\n                    self.skipped_count += 1\n                    return None\n                if response.status_code != 200:\n                    await self._emit('log', {'level':'WARN', 'message':f'HTTP {response.status_code} for {url}'})\n                    self.skipped_count += 1\n                    return None\n                content_type = response.headers.get('Content-Type', '').lower()\n                if 'text/html' not in content_type and 'application/xhtml+xml' not in content_type:\n                    self.skipped_count += 1\n                    return None\n                content_length = response.headers.get('Content-Length')\n                if content_length and int(content_length) > 2 * 1024 * 1024:\n                    self.skipped_count += 1\n                    return None\n                chunks = []\n                size = 0\n                async for chunk in response.aiter_bytes():\n                    size += len(chunk)\n                    if size > 2 * 1024 * 1024:\n                        self.skipped_count += 1\n                        await self._emit('log', {'level':'WARN','message':'Page exceeded 2 MB limit'})\n                        return None\n                    chunks.append(chunk)\n                return b''.join(chunks).decode(response.encoding or 'utf-8', errors='replace')
+            # Never follow redirects automatically: redirect targets require their own security validation.
+            async with client.stream('GET', url, headers=headers, follow_redirects=False, timeout=12.0) as response:
+                if response.is_redirect:
+                    await self._emit('log', {'level':'WARN', 'message':f'Redirect skipped for {url}'})
+                    self.skipped_count += 1
+                    return None
+                if response.status_code != 200:
+                    await self._emit('log', {'level':'WARN', 'message':f'HTTP {response.status_code} for {url}'})
+                    self.skipped_count += 1
+                    return None
+                content_type = response.headers.get('Content-Type', '').lower()
+                if 'text/html' not in content_type and 'application/xhtml+xml' not in content_type:
+                    self.skipped_count += 1
+                    return None
+                content_length = response.headers.get('Content-Length')
+                if content_length and int(content_length) > 2 * 1024 * 1024:
+                    self.skipped_count += 1
+                    return None
+                chunks = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > 2 * 1024 * 1024:
+                        self.skipped_count += 1
+                        await self._emit('log', {'level':'WARN','message':'Page exceeded 2 MB limit'})
+                        return None
+                    chunks.append(chunk)
+                return b''.join(chunks).decode(response.encoding or 'utf-8', errors='replace')
 
         except httpx.TimeoutException:
             await self._emit("log", {"level": "ERROR", "message": f"Timeout fetching {url}"})
