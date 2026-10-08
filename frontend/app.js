@@ -380,3 +380,43 @@ btnDownload.addEventListener("click", () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(blobUrl);
 });
+
+// Optional BYOK AI flow. Keys are never written to localStorage/sessionStorage.
+const aiProvider = document.getElementById("aiProvider");
+const aiKey = document.getElementById("aiKey");
+const aiOperation = document.getElementById("aiOperation");
+const aiConfirm = document.getElementById("aiConfirm");
+const btnRunAI = document.getElementById("btnRunAI");
+const aiStatus = document.getElementById("aiStatus");
+const aiResult = document.getElementById("aiResult");
+const aiResultWrap = document.getElementById("aiResultWrap");
+const aiDownload = document.getElementById("aiDownload");
+function syncAiButton(){if(btnRunAI)btnRunAI.disabled=!(aiKey.value.trim()&&aiConfirm.checked&&currentFormattedText.trim());}
+function clearAi(){if(aiKey)aiKey.value="";if(aiConfirm)aiConfirm.checked=false;if(aiResult)aiResult.value="";if(aiResultWrap)aiResultWrap.classList.add("hidden");if(aiStatus)aiStatus.textContent="";syncAiButton();}
+if(aiKey&&btnRunAI){
+ aiKey.addEventListener("input",syncAiButton);aiConfirm.addEventListener("change",syncAiButton);
+ aiProvider.addEventListener("change",()=>{aiKey.value="";aiConfirm.checked=false;syncAiButton()});
+ btnRunAI.addEventListener("click",async()=>{
+  if(!currentFormattedText.trim()||!aiKey.value.trim()||!aiConfirm.checked)return;
+  const text=currentFormattedText.slice(0,60000),key=aiKey.value;
+  aiKey.value="";aiConfirm.checked=false;btnRunAI.disabled=true;aiResultWrap.classList.add("hidden");
+  aiStatus.textContent="Contacting your selected provider. Your key is not saved by CrawlText.";
+  try{
+   const client=await getClient();
+   const response=await client.predict("/process_with_ai",[aiProvider.value,key,aiOperation.value,text]);
+   const result=(response.data||response)[0];
+   if(typeof result!=="string")throw new Error("Unexpected provider response");
+   aiResult.value=result;aiResultWrap.classList.remove("hidden");aiStatus.textContent="AI operation finished.";
+  }catch(err){aiStatus.textContent="AI processing failed. Check your provider credentials, quota and backend availability.";}
+  finally{syncAiButton();}
+ });
+ aiDownload.addEventListener("click",()=>{
+  if(!aiResult.value)return;
+  const blob=new Blob([aiResult.value],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="CrawlText_AI_output.txt";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ });
+ // Never cache the API key; clear it whenever the user begins a new crawl.
+ crawlForm.addEventListener("submit",clearAi);
+ if(btnReset)btnReset.addEventListener("click",clearAi);
+ window.addEventListener("pagehide",()=>{aiKey.value="";});
+}
