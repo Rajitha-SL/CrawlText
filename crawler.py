@@ -112,7 +112,7 @@ class AsyncCrawler:
         self.max_pages = min(max(max_pages, 1), 100)
         self.max_depth = min(max(max_depth, 1), 5)
         self.crawl_delay = crawl_delay_ms / 1000.0
-        self.concurrency = max(1, min(concurrency, 5))
+        self.concurrency = 1  # Deliberate bounded sequential crawling for public beta
         self.event_callback = event_callback
         self.cancel_event = cancel_event or asyncio.Event()
 
@@ -151,27 +151,34 @@ class AsyncCrawler:
                 "Accept-Language": "en-US,en;q=0.5",
             }
             
-            response = await client.get(url, headers=headers, follow_redirects=True, timeout=12.0)
-
-            if response.status_code != 200:
-                await self._emit("log", {"level": "WARN", "message": f"HTTP {response.status_code} for {url}"})
-                self.skipped_count += 1
-                return None
-
-            content_type = response.headers.get("Content-Type", "").lower()
-            if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
-                await self._emit("log", {"level": "INFO", "message": f"Skipped non-HTML Content-Type '{content_type}' at {url}"})
-                self.skipped_count += 1
-                return None
-
-            # Skip large payloads > 5MB
-            content_length = response.headers.get("Content-Length")
-            if content_length and int(content_length) > 5 * 1024 * 1024:
-                await self._emit("log", {"level": "WARN", "message": f"Skipped payload > 5MB at {url}"})
-                self.skipped_count += 1
-                return None
-
-            return response.text
+            # Never follow redirects automatically: redirect targets require their own security validation.
+            async with client.stream('GET', url, headers=headers, follow_redirects=False, timeout=12.0) as response:
+                if response.is_redirect:
+                    await self._emit('log', {'level':'WARN', 'message':f'Redirect skipped for {url}'})
+                    self.skipped_count += 1
+                    return None
+                if response.status_code != 200:
+                    await self._emit('log', {'level':'WARN', 'message':f'HTTP {response.status_code} for {url}'})
+                    self.skipped_count += 1
+                    return None
+                content_type = response.headers.get('Content-Type', '').lower()
+                if 'text/html' not in content_type and 'application/xhtml+xml' not in content_type:
+                    self.skipped_count += 1
+                    return None
+                content_length = response.headers.get('Content-Length')
+                if content_length and int(content_length) > 2 * 1024 * 1024:
+                    self.skipped_count += 1
+                    return None
+                chunks = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > 2 * 1024 * 1024:
+                        self.skipped_count += 1
+                        await self._emit('log', {'level':'WARN','message':'Page exceeded 2 MB limit'})
+                        return None
+                    chunks.append(chunk)
+                return b''.join(chunks).decode(response.encoding or 'utf-8', errors='replace')
 
         except httpx.TimeoutException:
             await self._emit("log", {"level": "ERROR", "message": f"Timeout fetching {url}"})
@@ -213,7 +220,7 @@ class AsyncCrawler:
         extracted_pages = []
         combined_output_chunks = []
 
-        async with httpx.AsyncClient(verify=True) as client:
+        async with httpx.AsyncClient(verify=True, trust_env=False, timeout=12.0) as client:
             while queue and self.crawled_count < self.max_pages:
                 if self.cancel_event.is_set():
                     await self._emit("log", {"level": "WARN", "message": "Crawl aborted by user request."})
