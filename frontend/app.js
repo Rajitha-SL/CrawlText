@@ -550,26 +550,53 @@ async function createExport(format){
         ctx.textAlign = "left";
         pdf.addImage(canvas.toDataURL("image/png"),"PNG",0,0,sheetWidth,sheetHeight,undefined,"FAST");
     }
+    let hasContentOnSheet = false;
     function drawLine(line) {
-        if(y + lineHeight > bottom) { finishSheet(); pdf.addPage(); newSheet(); }
-        ctx.fillText(line || " ",left,y);
+        // A page is created only when there is meaningful content to place on it.
+        if(y + lineHeight > bottom) {
+            finishSheet();
+            pdf.addPage();
+            newSheet();
+            hasContentOnSheet = false;
+        }
+        if(line) {
+            ctx.fillText(line,left,y);
+            hasContentOnSheet = true;
+        }
         y += lineHeight;
     }
-    newSheet();
-    for(const original of text.split(/\r?\n/)) {
-        if(!original.trim()) { drawLine(""); continue; }
+    function wrapLine(original) {
+        if(!original.trim()) { drawLine(""); return; }
+        // Prefer word boundaries for Latin text, but allow wrapping long URLs
+        // and scripts without spaces (including Japanese) by Unicode code point.
+        const pieces = original.match(/\S+\s*|\s+/gu) || [original];
         let line = "";
-        // Split by Unicode code point; long unbroken URLs still wrap safely.
-        for(const character of Array.from(original)) {
-            if(ctx.measureText(line + character).width > right-left && line) {
-                drawLine(line);
-                line = character === " " ? "" : character;
-            } else {
+        function fitToken(token) {
+            for(const character of Array.from(token)) {
+                if(line && ctx.measureText(line + character).width > right-left) {
+                    drawLine(line.trimEnd());
+                    line = "";
+                }
                 line += character;
             }
         }
-        if(line) drawLine(line);
+        for(const piece of pieces) {
+            if(!line && !piece.trim()) continue;
+            if(ctx.measureText(line + piece).width <= right-left) {
+                line += piece;
+            } else if(line && ctx.measureText(piece).width <= right-left) {
+                drawLine(line.trimEnd());
+                line = piece.trimStart();
+            } else {
+                if(line) { drawLine(line.trimEnd()); line = ""; }
+                fitToken(piece.trimStart());
+            }
+        }
+        if(line.trim()) drawLine(line.trimEnd());
     }
+    // Avoid creating a new PDF sheet solely for trailing empty source lines.
+    const sourceLines = text.replace(/\s+$/u,"").split(/\r?\n/);
+    for(const original of sourceLines) wrapLine(original);
     finishSheet();
     pdf.save(name+".pdf");
   }
