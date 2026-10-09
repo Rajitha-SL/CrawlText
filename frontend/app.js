@@ -117,6 +117,56 @@ crawlDelayInput.addEventListener("input", (e) => {
     crawlDelayInput.setAttribute("aria-valuenow", val);
 });
 
+// Provide editable numeric fields alongside both sliders without changing the
+// established controls or backend request contract.
+function addTypedCrawlerSetting(slider, display, options) {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = String(options.min);
+    input.max = String(options.max);
+    input.step = String(options.step);
+    input.value = slider.value;
+    input.id = options.id;
+    input.setAttribute("aria-label", options.label);
+    input.title = options.label + " (" + options.min + "–" + options.max + ")";
+    input.className = "w-20 sm:w-24 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+    input.style.cssText += "width:90px;max-width:100%;min-height:36px;";
+    const row = document.createElement("div");
+    row.className = "flex items-center gap-3 mt-2";
+    const sliderParent = slider.parentElement;
+    sliderParent.insertBefore(row, slider);
+    slider.classList.add("flex-1");
+    slider.classList.remove("w-full");
+    row.appendChild(slider);
+    row.appendChild(input);
+    const normalize = (value) => {
+        const parsed = Number(value);
+        const safe = Number.isFinite(parsed) ? parsed : Number(slider.value);
+        const bounded = Math.min(options.max, Math.max(options.min, safe));
+        return options.decimals === 0 ? String(Math.round(bounded)) : bounded.toFixed(options.decimals);
+    };
+    slider.addEventListener("input", () => { input.value = slider.value; });
+    input.addEventListener("input", () => {
+        if(input.value.trim() === "" || !Number.isFinite(Number(input.value))) return;
+        const val = normalize(input.value);
+        slider.value = val;
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    input.addEventListener("change", () => {
+        const val = normalize(input.value);
+        input.value = val;
+        slider.value = val;
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    return input;
+}
+addTypedCrawlerSetting(maxPagesInput, maxPagesDisplay, {
+    id: "maxPagesTyped", label: "Type maximum pages", min: 1, max: 100, step: 1, decimals: 0
+});
+addTypedCrawlerSetting(crawlDelayInput, delayDisplay, {
+    id: "crawlDelayTyped", label: "Type throttle delay in seconds", min: 0.1, max: 2, step: 0.1, decimals: 1
+});
+
 // Aggressive Input Sanitization
 function sanitizeUrl(rawUrl) {
     if (!rawUrl || typeof rawUrl !== "string") return "";
@@ -449,49 +499,71 @@ async function createExport(format){
     const blob=await window.docx.Packer.toBlob(doc);
     saveExportBlob(blob,name+".docx");
   }else if(format==="pdf"){
-    // jsPDF's built-in Helvetica cannot represent Japanese and other scripts.
-    // Render the browser's Unicode-capable fonts to a wrapped, paginated PDF.
-    if(!window.html2pdf){
-      await new Promise((resolve,reject)=>{
-        const script=document.createElement("script");
-        script.src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js";
-        script.onload=resolve;
-        script.onerror=()=>reject(new Error("PDF renderer could not load"));
-        document.head.appendChild(script);
-      });
+    // Render each PDF sheet independently with canvas to avoid html2pdf's
+    // off-page positioning, right-edge clipping and mid-line page slicing.
+    // Browser canvas fonts preserve Japanese and other multilingual scripts.
+    if(!window.jspdf?.jsPDF) throw new Error("PDF exporter unavailable");
+    const pdf = new window.jspdf.jsPDF({unit:"mm",format:"a4",compress:true});
+    const sheetWidth = 210, sheetHeight = 297, margin = 15;
+    const canvasWidth = 1200;
+    const pxPerMm = canvasWidth / sheetWidth;
+    const canvasHeight = Math.round(sheetHeight * pxPerMm);
+    const left = Math.round(margin * pxPerMm);
+    const right = canvasWidth - left;
+    const top = Math.round(19 * pxPerMm);
+    const bottom = canvasHeight - Math.round(16 * pxPerMm);
+    const fontSize = 20, lineHeight = 32;
+    const sourceCount = (text.match(/^PAGE:\\s/gm) || []).length;
+    let canvas, ctx, y, pageNumber = 0;
+    function newSheet() {
+        canvas = document.createElement("canvas");
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0,canvasWidth,canvasHeight);
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "#111827";
+        ctx.font = "bold 27px Arial, 'Yu Gothic', Meiryo, sans-serif";
+        ctx.fillText("CrawlText — Extracted Web Pages",left,top);
+        ctx.font = "17px Arial, 'Yu Gothic', Meiryo, sans-serif";
+        ctx.fillStyle = "#475569";
+        ctx.fillText("Source web pages: " + sourceCount + " | Target: " + currentTargetDomain,left,top+38);
+        ctx.font = fontSize + "px Arial, 'Yu Gothic', Meiryo, sans-serif";
+        ctx.fillStyle = "#111827";
+        y = top + 96;
+        pageNumber++;
     }
-    const printable=document.createElement("div");
-    printable.style.cssText="box-sizing:border-box;width:720px;padding:12px 16px;background:#fff;color:#151515;font:13px/1.55 Arial,'Noto Sans CJK JP','Yu Gothic',Meiryo,sans-serif;overflow-wrap:anywhere;word-break:break-word;";
-    const heading=document.createElement("h1");
-    heading.textContent="CrawlText — Extracted Web Pages";
-    heading.style.cssText="font-size:21px;margin:0 0 6px;";
-    printable.appendChild(heading);
-    const sourceCount=(text.match(/^PAGE:\\s/gm)||[]).length;
-    const summary=document.createElement("p");
-    summary.textContent=`Source web pages: ${sourceCount} | Target: ${currentTargetDomain}`;
-    summary.style.cssText="font-size:12px;color:#444;margin:0 0 18px;";
-    printable.appendChild(summary);
-    const body=document.createElement("div");
-    body.textContent=text;
-    body.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;";
-    printable.appendChild(body);
-    // html2pdf needs an attached element to measure layout reliably.
-    const host=document.createElement("div");
-    host.style.cssText="position:fixed;left:-10000px;top:0;z-index:-1;background:#fff;";
-    host.appendChild(printable);
-    document.body.appendChild(host);
-    try{
-      await window.html2pdf().set({
-        margin:[14,14,14,14],
-        filename:name+".pdf",
-        image:{type:"jpeg",quality:0.97},
-        html2canvas:{scale:1.5,backgroundColor:"#ffffff",useCORS:true},
-        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
-        pagebreak:{mode:["css","legacy"]}
-      }).from(printable).save();
-    }finally{
-      host.remove();
+    function finishSheet() {
+        ctx.fillStyle = "#64748b";
+        ctx.font = "16px Arial, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("PDF sheet " + pageNumber,right,canvasHeight-42);
+        ctx.textAlign = "left";
+        pdf.addImage(canvas.toDataURL("image/png"),"PNG",0,0,sheetWidth,sheetHeight,undefined,"FAST");
     }
+    function drawLine(line) {
+        if(y + lineHeight > bottom) { finishSheet(); pdf.addPage(); newSheet(); }
+        ctx.fillText(line || " ",left,y);
+        y += lineHeight;
+    }
+    newSheet();
+    for(const original of text.split(/\\r?\\n/)) {
+        if(!original.trim()) { drawLine(""); continue; }
+        let line = "";
+        // Split by Unicode code point; long unbroken URLs still wrap safely.
+        for(const character of Array.from(original)) {
+            if(ctx.measureText(line + character).width > right-left && line) {
+                drawLine(line);
+                line = character === " " ? "" : character;
+            } else {
+                line += character;
+            }
+        }
+        if(line) drawLine(line);
+    }
+    finishSheet();
+    pdf.save(name+".pdf");
   }
 }
 function saveExportBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
