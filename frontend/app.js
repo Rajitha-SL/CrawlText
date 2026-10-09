@@ -550,53 +550,52 @@ async function createExport(format){
         ctx.textAlign = "left";
         pdf.addImage(canvas.toDataURL("image/png"),"PNG",0,0,sheetWidth,sheetHeight,undefined,"FAST");
     }
-    let hasContentOnSheet = false;
     function drawLine(line) {
-        // A page is created only when there is meaningful content to place on it.
-        if(y + lineHeight > bottom) {
+        // Do not allocate a fresh sheet for a blank separator at a page boundary.
+        if (y + lineHeight > bottom) {
+            if (!line) return;
             finishSheet();
             pdf.addPage();
             newSheet();
-            hasContentOnSheet = false;
         }
-        if(line) {
-            ctx.fillText(line,left,y);
-            hasContentOnSheet = true;
-        }
+        if (line) ctx.fillText(line,left,y);
         y += lineHeight;
     }
     function wrapLine(original) {
-        if(!original.trim()) { drawLine(""); return; }
-        // Prefer word boundaries for Latin text, but allow wrapping long URLs
-        // and scripts without spaces (including Japanese) by Unicode code point.
-        const pieces = original.match(/\S+\s*|\s+/gu) || [original];
+        if (!original.trim()) { drawLine(""); return; }
         let line = "";
-        function fitToken(token) {
-            for(const character of Array.from(token)) {
-                if(line && ctx.measureText(line + character).width > right-left) {
+        // A space-aware version of the previously working character wrapper.
+        // Each token is measured before insertion; only oversized tokens
+        // (long URLs or scripts without spaces) are split by code point.
+        const tokens = original.match(/\S+\s*|\s+/g) || [original];
+        for (const token of tokens) {
+            if (ctx.measureText(line + token).width <= right - left) {
+                line += token;
+                continue;
+            }
+            if (line.trim()) {
+                drawLine(line.trimEnd());
+                line = "";
+            }
+            const word = token.trimStart();
+            if (ctx.measureText(word).width <= right - left) {
+                line = word;
+                continue;
+            }
+            for (const character of Array.from(word)) {
+                if (line && ctx.measureText(line + character).width > right - left) {
                     drawLine(line.trimEnd());
                     line = "";
                 }
                 line += character;
             }
         }
-        for(const piece of pieces) {
-            if(!line && !piece.trim()) continue;
-            if(ctx.measureText(line + piece).width <= right-left) {
-                line += piece;
-            } else if(line && ctx.measureText(piece).width <= right-left) {
-                drawLine(line.trimEnd());
-                line = piece.trimStart();
-            } else {
-                if(line) { drawLine(line.trimEnd()); line = ""; }
-                fitToken(piece.trimStart());
-            }
-        }
-        if(line.trim()) drawLine(line.trimEnd());
+        if (line.trim()) drawLine(line.trimEnd());
     }
-    // Avoid creating a new PDF sheet solely for trailing empty source lines.
-    const sourceLines = text.replace(/\s+$/u,"").split(/\r?\n/);
-    for(const original of sourceLines) wrapLine(original);
+    // Do not render the trailing blank lines from the extracted text.
+    for (const original of text.trimEnd().split(/\r?\n/)) {
+        wrapLine(original);
+    }
     finishSheet();
     pdf.save(name+".pdf");
   }
@@ -604,5 +603,5 @@ async function createExport(format){
 function saveExportBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
 for(const fmt of ["docx","pdf"]){
   const btn=document.getElementById(fmt==="docx"?"btnWord":"btnPdf");
-  if(btn)btn.addEventListener("click",async()=>{if(!currentFormattedText.trim())return;btn.disabled=true;const label=btn.textContent;btn.textContent="Preparing…";try{await createExport(fmt)}catch(err){showGranularError(new Error(fmt.toUpperCase()+" export failed. Try again or use TXT."),urlInput.value)}finally{btn.disabled=false;btn.textContent=label}});
+  if(btn)btn.addEventListener("click",async()=>{if(!currentFormattedText.trim())return;btn.disabled=true;const label=btn.textContent;btn.textContent="Preparing…";try{await createExport(fmt)}catch(err){console.error("CrawlText "+fmt.toUpperCase()+" export error:",err);showGranularError(new Error(fmt.toUpperCase()+" export failed: "+(err?.message||"Unknown error")+". Try again or use TXT."),urlInput.value)}finally{btn.disabled=false;btn.textContent=label}});
 }
