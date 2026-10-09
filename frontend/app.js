@@ -320,7 +320,17 @@ crawlForm.addEventListener("submit", async (e) => {
         // Reveal Metrics & Output Panels
         metricsGrid.classList.remove("hidden");
         resultsPanel.classList.remove("hidden");
-        resultsPanel.scrollIntoView({ behavior: "smooth" });
+        // Align the results toolbar below the fixed/sticky site header.
+        // Scrolling directly to the panel without an offset hides export buttons.
+        requestAnimationFrame(() => {
+            const header = document.querySelector("header");
+            const headerHeight = header ? header.getBoundingClientRect().height : 110;
+            const panelTop = window.scrollY + resultsPanel.getBoundingClientRect().top;
+            window.scrollTo({
+                top: Math.max(0, panelTop - headerHeight - 16),
+                behavior: "smooth"
+            });
+        });
 
     } catch (err) {
         console.error("Crawl error:", err);
@@ -439,18 +449,49 @@ async function createExport(format){
     const blob=await window.docx.Packer.toBlob(doc);
     saveExportBlob(blob,name+".docx");
   }else if(format==="pdf"){
-    if(!window.jspdf?.jsPDF)throw new Error("PDF exporter unavailable");
-    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",compress:true});
-    const margin=18,width=210-2*margin,lineHeight=5.5,bottom=277;
-    let y=22;pdf.setFont("helvetica","normal");pdf.setFontSize(10);
-    for(const line of text.split(/\r?\n/)){
-      const wrapped=pdf.splitTextToSize(line||" ",width);
-      for(const part of wrapped){
-        if(y+lineHeight>bottom){pdf.addPage();y=22;}
-        pdf.text(part,margin,y);y+=lineHeight;
-      }
+    // jsPDF's built-in Helvetica cannot represent Japanese and other scripts.
+    // Render the browser's Unicode-capable fonts to a wrapped, paginated PDF.
+    if(!window.html2pdf){
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement("script");
+        script.src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js";
+        script.onload=resolve;
+        script.onerror=()=>reject(new Error("PDF renderer could not load"));
+        document.head.appendChild(script);
+      });
     }
-    pdf.save(name+".pdf");
+    const printable=document.createElement("div");
+    printable.style.cssText="box-sizing:border-box;width:720px;padding:12px 16px;background:#fff;color:#151515;font:13px/1.55 Arial,'Noto Sans CJK JP','Yu Gothic',Meiryo,sans-serif;overflow-wrap:anywhere;word-break:break-word;";
+    const heading=document.createElement("h1");
+    heading.textContent="CrawlText — Extracted Web Pages";
+    heading.style.cssText="font-size:21px;margin:0 0 6px;";
+    printable.appendChild(heading);
+    const sourceCount=(text.match(/^PAGE:\\s/gm)||[]).length;
+    const summary=document.createElement("p");
+    summary.textContent=`Source web pages: ${sourceCount} | Target: ${currentTargetDomain}`;
+    summary.style.cssText="font-size:12px;color:#444;margin:0 0 18px;";
+    printable.appendChild(summary);
+    const body=document.createElement("div");
+    body.textContent=text;
+    body.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;";
+    printable.appendChild(body);
+    // html2pdf needs an attached element to measure layout reliably.
+    const host=document.createElement("div");
+    host.style.cssText="position:fixed;left:-10000px;top:0;z-index:-1;background:#fff;";
+    host.appendChild(printable);
+    document.body.appendChild(host);
+    try{
+      await window.html2pdf().set({
+        margin:[14,14,14,14],
+        filename:name+".pdf",
+        image:{type:"jpeg",quality:0.97},
+        html2canvas:{scale:1.5,backgroundColor:"#ffffff",useCORS:true},
+        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+        pagebreak:{mode:["css","legacy"]}
+      }).from(printable).save();
+    }finally{
+      host.remove();
+    }
   }
 }
 function saveExportBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
