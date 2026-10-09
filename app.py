@@ -66,14 +66,20 @@ async def handle_crawl(url: str, max_pages: int, delay: float, request: gr.Reque
 
     try:
         async with _crawl_slots:
-            results = await asyncio.wait_for(crawl_site(
+            crawl_summary = await asyncio.wait_for(crawl_site(
             start_url=url,
             max_pages=max(1, min(MAX_PUBLIC_PAGES, int(max_pages))),
-            delay=max(0.3, min(2.0, float(delay)))
+            delay=max(0.3, min(2.0, float(delay))),
+            include_diagnostics=True
             ), timeout=CRAWL_DEADLINE_SECONDS)
 
+        results = crawl_summary.get("extracted_pages", [])
         if not results:
-            return "❌ No pages were found or extracted.", "", None
+            reasons = crawl_summary.get("failure_reasons", [])
+            if reasons:
+                details = "\n".join(f"- {reason}" for reason in reasons[:3])
+                return f"❌ No readable pages extracted.\n\n**What happened:**\n{details}\n\nTry a different public HTML page. CrawlText does not bypass access restrictions or execute JavaScript.", "", None
+            return "❌ No readable pages extracted. The site may restrict automated access or require JavaScript.", "", None
 
         formatted_text = format_crawl_results(results)
         summary = f"### ✅ Crawl Complete\n- **Target**: `{url}`\n- **Pages Extracted**: `{len(results)}`"
