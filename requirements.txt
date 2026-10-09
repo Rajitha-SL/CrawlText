@@ -6,5 +6,5 @@ trafilatura
 beautifulsoup4
 lxml
 sse-starlette
-pydantic
+pydantic==2.10.6
 spaces
