@@ -123,6 +123,7 @@ class AsyncCrawler:
         self.discovered_urls: Set[str] = set()
         self.skipped_count: int = 0
         self.crawled_count: int = 0
+        self.failure_reasons: list[str] = []
 
         self.semaphore = asyncio.Semaphore(self.concurrency)
 
@@ -134,12 +135,18 @@ class AsyncCrawler:
             except Exception:
                 pass
 
+    def _record_failure(self, message: str) -> None:
+        """Collect concise, user-safe reasons without exposing response bodies or secrets."""
+        if len(self.failure_reasons) < 5 and message not in self.failure_reasons:
+            self.failure_reasons.append(message)
+
     async def fetch_page(self, client: httpx.AsyncClient, url: str) -> Optional[str]:
         """Fetches a page content safely checking SSRF and payload size limits."""
         # 1. SSRF Check
         is_safe, reason = is_ssrf_safe(url)
         if not is_safe:
             await self._emit("log", {"level": "WARN", "message": f"Skipped SSRF unsafe URL '{url}': {reason}"})
+            self._record_failure("The URL was blocked by the crawler's network safety checks.")
             self.skipped_count += 1
             return None
 
@@ -154,19 +161,29 @@ class AsyncCrawler:
             # Never follow redirects automatically: redirect targets require their own security validation.
             async with client.stream('GET', url, headers=headers, follow_redirects=False, timeout=12.0) as response:
                 if response.is_redirect:
+                    self._record_failure(f"The website returned HTTP {response.status_code} (redirect). Automatic redirects are disabled for safety.")
                     await self._emit('log', {'level':'WARN', 'message':f'Redirect skipped for {url}'})
                     self.skipped_count += 1
                     return None
                 if response.status_code != 200:
+                    code = response.status_code
+                    if code in (401, 403):
+                        self._record_failure(f"The website denied crawler access (HTTP {code}).")
+                    elif code == 429:
+                        self._record_failure("The website rate-limited the crawler (HTTP 429).")
+                    else:
+                        self._record_failure(f"The website returned HTTP {code}.")
                     await self._emit('log', {'level':'WARN', 'message':f'HTTP {response.status_code} for {url}'})
                     self.skipped_count += 1
                     return None
                 content_type = response.headers.get('Content-Type', '').lower()
                 if 'text/html' not in content_type and 'application/xhtml+xml' not in content_type:
+                    self._record_failure("The response was not an HTML page (unsupported content type).")
                     self.skipped_count += 1
                     return None
                 content_length = response.headers.get('Content-Length')
                 if content_length and int(content_length) > 2 * 1024 * 1024:
+                    self._record_failure("The page exceeded the 2 MB size limit.")
                     self.skipped_count += 1
                     return None
                 chunks = []
@@ -174,6 +191,7 @@ class AsyncCrawler:
                 async for chunk in response.aiter_bytes():
                     size += len(chunk)
                     if size > 2 * 1024 * 1024:
+                        self._record_failure("The page exceeded the 2 MB size limit.")
                         self.skipped_count += 1
                         await self._emit('log', {'level':'WARN','message':'Page exceeded 2 MB limit'})
                         return None
@@ -181,11 +199,21 @@ class AsyncCrawler:
                 return b''.join(chunks).decode(response.encoding or 'utf-8', errors='replace')
 
         except httpx.TimeoutException:
+            self._record_failure("The website did not respond within 12 seconds (timeout).")
             await self._emit("log", {"level": "ERROR", "message": f"Timeout fetching {url}"})
             self.skipped_count += 1
             return None
-        except Exception as e:
-            await self._emit("log", {"level": "ERROR", "message": f"Error fetching {url}: {str(e)}"})
+        except httpx.ConnectError:
+            self._record_failure("Could not establish a connection to the website.")
+            self.skipped_count += 1
+            return None
+        except httpx.HTTPError:
+            self._record_failure("The website connection failed while fetching the page.")
+            self.skipped_count += 1
+            return None
+        except Exception:
+            self._record_failure("An unexpected error occurred while fetching the page.")
+            await self._emit("log", {"level": "ERROR", "message": f"Error fetching {url}"})
             self.skipped_count += 1
             return None
 
@@ -250,6 +278,10 @@ class AsyncCrawler:
 
                 # Content Extraction
                 extracted_data = clean_and_extract_content(html_content, current_url)
+                if not extracted_data.get("success"):
+                    self._record_failure("The page loaded, but no readable body text was found. It may require JavaScript rendering.")
+                    self.skipped_count += 1
+                    continue
                 formatted_chunk = format_page_output(
                     extracted_data["title"],
                     extracted_data["url"],
@@ -292,6 +324,7 @@ class AsyncCrawler:
             "pages_discovered": len(self.discovered_urls),
             "pages_skipped": self.skipped_count,
             "extracted_pages": extracted_pages,
+            "failure_reasons": self.failure_reasons,
             "combined_output": "".join(combined_output_chunks)
         }
 
@@ -299,7 +332,7 @@ class AsyncCrawler:
         return final_summary
 
 
-async def crawl_site(start_url: str, max_pages: int = 10, delay: float = 0.3):
+async def crawl_site(start_url: str, max_pages: int = 10, delay: float = 0.3, include_diagnostics: bool = False):
     """Helper function to run AsyncCrawler and return extracted pages list."""
     crawler = AsyncCrawler(
         root_url=start_url,
@@ -308,5 +341,5 @@ async def crawl_site(start_url: str, max_pages: int = 10, delay: float = 0.3):
         crawl_delay_ms=int(delay * 1000)
     )
     results = await crawler.crawl()
-    return results.get("extracted_pages", [])
+    return results if include_diagnostics else results.get("extracted_pages", [])
 
