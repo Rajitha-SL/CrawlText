@@ -640,9 +640,16 @@ function printSearchablePdf(){
   d.getElementById("source").textContent="Source web pages: "+sourceCount+" | Target: "+currentTargetDomain;
   d.getElementById("content").textContent=currentFormattedText.trimEnd();
   // Allow the newly constructed print document to finish layout before printing.
-  printWindow.addEventListener("load",()=>{printWindow.focus();printWindow.print();},{once:true});
+  let printStarted=false;
+  const beginPrint=()=>{
+    if(printStarted)return;
+    printStarted=true;
+    printWindow.focus();
+    printWindow.print();
+  };
+  printWindow.addEventListener("load",beginPrint,{once:true});
   // document.write() can complete loading before the listener is attached.
-  if(d.readyState==="complete")setTimeout(()=>{printWindow.focus();printWindow.print();},150);
+  if(d.readyState==="complete")setTimeout(beginPrint,150);
 }
 function saveExportBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
 for(const fmt of ["docx","pdf"]){
