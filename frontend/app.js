@@ -597,6 +597,9 @@ async function createExport(format){
         }
         if (line.trim()) drawLine(line.trimEnd());
     }
+    // Initialize the first canvas before wrapLine measures any text.
+    // Subsequent sheets are created by drawLine() only when needed.
+    newSheet();
     // Do not render the trailing blank lines from the extracted text.
     for (const original of text.trimEnd().split(/\r?\n/)) {
         wrapLine(original);
