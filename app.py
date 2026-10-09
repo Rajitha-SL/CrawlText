@@ -1,6 +1,8 @@
 import os
 import tempfile
 import asyncio
+import time
+from collections import defaultdict, deque
 import gradio as gr
 import httpx
 from urllib.parse import urlparse
@@ -19,7 +21,31 @@ from crawler import crawl_site
 from security import is_ssrf_safe
 from extractor import format_crawl_results
 
-async def handle_crawl(url: str, max_pages: int, delay: float):
+# Best-effort per-process public beta guardrails. For multi-instance deployment,
+# replace with a shared Redis-backed limiter and infrastructure egress policy.
+MAX_CONCURRENT_CRAWLS = 2
+MAX_REQUESTS_PER_HOUR = 8
+CRAWL_DEADLINE_SECONDS = 150
+MAX_PUBLIC_PAGES = 100
+_crawl_slots = asyncio.Semaphore(MAX_CONCURRENT_CRAWLS)
+_request_history = defaultdict(deque)
+
+def _allow_crawl(client_id: str) -> bool:
+    now = time.monotonic()
+    history = _request_history[client_id]
+    while history and history[0] < now - 3600:
+        history.popleft()
+    if len(history) >= MAX_REQUESTS_PER_HOUR:
+        return False
+    history.append(now)
+    # Restrict memory use for unauthenticated public traffic.
+    if len(_request_history) > 3000:
+        for key in list(_request_history)[:500]:
+            if not _request_history[key] or _request_history[key][-1] < now - 3600:
+                _request_history.pop(key, None)
+    return True
+
+async def handle_crawl(url: str, max_pages: int, delay: float, request: gr.Request):
     """Clean async crawl handler running on CPU without ZeroGPU queue bottlenecks."""
     if not url or not url.strip():
         return "⚠️ Please enter a valid URL.", "", None
@@ -32,12 +58,16 @@ async def handle_crawl(url: str, max_pages: int, delay: float):
     if not safe:
         return f"⚠️ URL rejected: {reason}", "", None
 
+    if not _allow_crawl(str(getattr(request, "client", None) or "anonymous")):
+        return "⚠️ Free usage limit reached: up to 8 crawls per hour. Please try later.", "", None
+
     try:
-        results = await crawl_site(
+        async with _crawl_slots:
+            results = await asyncio.wait_for(crawl_site(
             start_url=url,
-            max_pages=int(max_pages),
-            delay=float(delay)
-        )
+            max_pages=max(1, min(MAX_PUBLIC_PAGES, int(max_pages))),
+            delay=max(0.3, min(2.0, float(delay)))
+            ), timeout=CRAWL_DEADLINE_SECONDS)
 
         if not results:
             return "❌ No pages were found or extracted.", "", None
@@ -52,8 +82,10 @@ async def handle_crawl(url: str, max_pages: int, delay: float):
 
         return summary, formatted_text, tmp.name
 
-    except Exception as e:
-        return f"❌ Error during crawl: {str(e)}", "", None
+    except asyncio.TimeoutError:
+        return "⚠️ The crawl exceeded its 150-second execution limit. Try fewer pages.", "", None
+    except Exception:
+        return "❌ The crawl could not be completed. Please check the URL and try again.", "", None
 
 # Stateless bring-your-own-key processing. No application-level credential persistence.
 # Note: infrastructure providers may have their own request logging/retention policies.
