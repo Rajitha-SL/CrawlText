@@ -217,7 +217,10 @@ function showGranularError(err, url) {
 
     const errStr = String(err).toLowerCase();
 
-    if (errStr.includes("403") || errStr.includes("forbidden") || errStr.includes("cloudflare")) {
+    if (errStr.includes("no readable pages extracted")) {
+        title = "No Readable Pages Extracted";
+        msg = String(err?.message || "").replace(/^❌\\s*/, "").replace(/\\*\\*/g, "").replace(/\\n/g, " ").trim();
+    } else if (errStr.includes("403") || errStr.includes("forbidden") || errStr.includes("cloudflare")) {
         title = "🛡️ Target Security Blocked";
         msg = `The target site (${url}) blocked automated extraction (Cloudflare / WAF protection).`;
     } else if (errStr.includes("404") || errStr.includes("not found")) {
@@ -334,6 +337,8 @@ crawlForm.addEventListener("submit", async (e) => {
         const formattedText = data[1] || "";
 
         if (!formattedText || formattedText.startsWith("❌") || formattedText.startsWith("⚠️")) {
+            statusMessage.innerText = "No readable pages extracted.";
+            progressBar.style.width = "100%";
             showGranularError(new Error(summaryMarkdown || formattedText || "No content extracted."), url);
             return;
         }
