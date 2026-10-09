@@ -521,7 +521,7 @@ async function createExport(format){
     const top = Math.round(19 * pxPerMm);
     const bottom = canvasHeight - Math.round(16 * pxPerMm);
     const fontSize = 20, lineHeight = 32;
-    const sourceCount = (text.match(/^PAGE:\\s/gm) || []).length;
+    const sourceCount = (text.match(/^PAGE:\s/gm) || []).length;
     let canvas, ctx, y, pageNumber = 0;
     function newSheet() {
         canvas = document.createElement("canvas");
@@ -556,7 +556,7 @@ async function createExport(format){
         y += lineHeight;
     }
     newSheet();
-    for(const original of text.split(/\\r?\\n/)) {
+    for(const original of text.split(/\r?\n/)) {
         if(!original.trim()) { drawLine(""); continue; }
         let line = "";
         // Split by Unicode code point; long unbroken URLs still wrap safely.
