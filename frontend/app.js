@@ -608,8 +608,75 @@ async function createExport(format){
     pdf.save(name+".pdf");
   }
 }
+/* Browser-native PDF printing keeps Unicode text selectable and searchable.
+ * The existing canvas exporter remains available as a visual-only alternative.
+ * Browser print engines handle shaping for Sinhala, Japanese and mixed scripts
+ * without jsPDF's limited built-in fonts or external font downloads. */
+function printSearchablePdf(){
+  if(!currentFormattedText.trim())return;
+  // Open synchronously in the click handler to avoid popup blockers.
+  const printWindow=window.open("","_blank");
+  if(!printWindow)throw new Error("Your browser blocked the PDF print window. Allow popups for CrawlText and try again.");
+  const d=printWindow.document;
+  d.open();
+  d.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>CrawlText — Searchable PDF</title>
+<style>
+  @page { size: A4; margin: 30mm 15mm 17mm; }
+  html,body { margin:0; padding:0; background:#fff; color:#111827; }
+  body { font-family:Arial,"Noto Sans Sinhala","Noto Sans JP","Yu Gothic",Meiryo,sans-serif; font-size:10pt; line-height:1.58; }
+  header { position:fixed; top:-20mm; left:0; right:0; height:16mm; }
+  header h1 { font-family:Arial,sans-serif; font-size:14pt; margin:0 0 2mm; font-weight:700; }
+  header p { font-family:Arial,sans-serif; font-size:8pt; margin:0; color:#475569; }
+  main { white-space:pre-wrap; overflow-wrap:anywhere; word-break:normal; }
+  footer { position:fixed; bottom:-11mm; right:0; font-size:8pt; color:#64748b; }
+  @media screen {
+    body { max-width:180mm; margin:25px auto; padding:25px; box-shadow:0 0 10px #ddd; }
+    header,footer { position:static; height:auto; margin-bottom:22px; }
+  }
+</style></head><body><header><h1>CrawlText — Extracted Web Pages</h1><p id="source"></p></header>
+<main id="content"></main><footer>CrawlText • Searchable PDF</footer></body></html>`);
+  d.close();
+  const sourceCount=(currentFormattedText.match(/^PAGE:\\s/gm)||[]).length;
+  d.getElementById("source").textContent="Source web pages: "+sourceCount+" | Target: "+currentTargetDomain;
+  d.getElementById("content").textContent=currentFormattedText.trimEnd();
+  // Allow the newly constructed print document to finish layout before printing.
+  printWindow.addEventListener("load",()=>{printWindow.focus();printWindow.print();},{once:true});
+  // document.write() can complete loading before the listener is attached.
+  if(d.readyState==="complete")setTimeout(()=>{printWindow.focus();printWindow.print();},150);
+}
 function saveExportBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
 for(const fmt of ["docx","pdf"]){
   const btn=document.getElementById(fmt==="docx"?"btnWord":"btnPdf");
-  if(btn)btn.addEventListener("click",async()=>{if(!currentFormattedText.trim())return;btn.disabled=true;const label=btn.textContent;btn.textContent="Preparing…";try{await createExport(fmt)}catch(err){console.error("CrawlText "+fmt.toUpperCase()+" export error:",err);showGranularError(new Error(fmt.toUpperCase()+" export failed: "+(err?.message||"Unknown error")+". Try again or use TXT."),urlInput.value)}finally{btn.disabled=false;btn.textContent=label}});
+  if(!btn)continue;
+  if(fmt==="pdf"){
+    // Searchable PDF is the default; retain the existing pixel-perfect raster
+    // exporter for users who want a direct download without the print dialog.
+    btn.textContent="Searchable .PDF";
+    btn.title="Opens the browser print dialog. Select Save as PDF for selectable, searchable multilingual text.";
+    btn.addEventListener("click",()=>{
+      try{printSearchablePdf()}catch(err){console.error("CrawlText searchable PDF error:",err);showGranularError(new Error("Searchable PDF failed: "+(err?.message||"Unknown error")),urlInput.value)}
+    });
+    const visualBtn=btn.cloneNode(true);
+    visualBtn.id="btnVisualPdf";
+    visualBtn.textContent="Visual .PDF";
+    visualBtn.title="Direct PDF download using page images (not selectable/searchable).";
+    btn.insertAdjacentElement("afterend",visualBtn);
+    visualBtn.addEventListener("click",async()=>{
+      if(!currentFormattedText.trim())return;
+      visualBtn.disabled=true;
+      const label=visualBtn.textContent;
+      visualBtn.textContent="Preparing…";
+      try{await createExport("pdf")}catch(err){console.error("CrawlText visual PDF error:",err);showGranularError(new Error("Visual PDF export failed: "+(err?.message||"Unknown error")),urlInput.value)}
+      finally{visualBtn.disabled=false;visualBtn.textContent=label}
+    });
+    continue;
+  }
+  btn.addEventListener("click",async()=>{
+    if(!currentFormattedText.trim())return;
+    btn.disabled=true;
+    const label=btn.textContent;
+    btn.textContent="Preparing…";
+    try{await createExport(fmt)}catch(err){console.error("CrawlText "+fmt.toUpperCase()+" export error:",err);showGranularError(new Error(fmt.toUpperCase()+" export failed: "+(err?.message||"Unknown error")+". Try again or use TXT."),urlInput.value)}
+    finally{btn.disabled=false;btn.textContent=label}
+  });
 }
