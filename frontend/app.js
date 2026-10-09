@@ -147,10 +147,18 @@ function addTypedCrawlerSetting(slider, display, options) {
     };
     slider.addEventListener("input", () => { input.value = slider.value; });
     input.addEventListener("input", () => {
-        if(input.value.trim() === "" || !Number.isFinite(Number(input.value))) return;
-        const val = normalize(input.value);
-        slider.value = val;
-        slider.dispatchEvent(new Event("input", { bubbles: true }));
+        // Allow partial values such as "0." while the user is typing.
+        // Only synchronize a complete, in-range value; clamp on change.
+        const raw = input.value.trim();
+        if(raw === "" || raw.endsWith(".") || !Number.isFinite(Number(raw))) return;
+        const number = Number(raw);
+        if(number < options.min || number > options.max) return;
+        slider.value = normalize(raw);
+        // Update the readout without overwriting the user's in-progress typing.
+        display.innerText = options.decimals === 0
+            ? slider.value + " pages"
+            : Number(slider.value).toFixed(1) + " seconds";
+        slider.setAttribute("aria-valuenow", slider.value);
     });
     input.addEventListener("change", () => {
         const val = normalize(input.value);
