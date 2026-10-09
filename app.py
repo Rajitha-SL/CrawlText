@@ -25,6 +25,9 @@ from extractor import format_crawl_results
 # replace with a shared Redis-backed limiter and infrastructure egress policy.
 MAX_CONCURRENT_CRAWLS = 2
 MAX_REQUESTS_PER_HOUR = 8
+MAX_AI_REQUESTS_PER_HOUR = 15
+_ai_request_history = defaultdict(deque)
+_ai_slots = asyncio.Semaphore(2)
 CRAWL_DEADLINE_SECONDS = 150
 MAX_PUBLIC_PAGES = 100
 _crawl_slots = asyncio.Semaphore(MAX_CONCURRENT_CRAWLS)
@@ -198,8 +201,17 @@ with gr.Blocks(
     ai_submit = gr.Button("Run AI with my own key")
     ai_output = gr.Textbox(label="AI processed text", lines=12, show_copy_button=True)
     gr.Markdown("CrawlText does not supply paid AI tokens. Provider charges, usage limits and data policies belong to your account. The key is sent through the hosting backend for this operation and is not deliberately written to application storage. Infrastructure/provider retention policies may apply.")
-    async def run_ai_and_clear(provider, api_key, operation, source_text):
-        result = await process_with_ai(provider, api_key, operation, source_text)
+    async def run_ai_and_clear(provider, api_key, operation, source_text, request: gr.Request):
+        client_id = str(getattr(request, "client", None) or "anonymous")
+        now = time.monotonic()
+        calls = _ai_request_history[client_id]
+        while calls and calls[0] < now - 3600:
+            calls.popleft()
+        if len(calls) >= MAX_AI_REQUESTS_PER_HOUR:
+            return "Free AI processing limit reached (15 requests per hour). Try later.", ""
+        calls.append(now)
+        async with _ai_slots:
+            result = await process_with_ai(provider, api_key, operation, source_text)
         return result, ""
     ai_submit.click(fn=run_ai_and_clear, inputs=[ai_provider, ai_key, ai_task, output_box], outputs=[ai_output, ai_key], api_name="process_with_ai", concurrency_limit=2)
 
