@@ -88,6 +88,44 @@ def fallback_bs4_extract(html: str, url: str) -> str:
     return "\n\n".join(clean_blocks)
 
 
+def clean_text_blocks(text: str, seen_blocks: Optional[set[str]] = None) -> str:
+    """Remove obvious counter artifacts and exact repeated long blocks.
+
+    Short headings, prices, lists and distinct content are retained. The optional
+    shared set suppresses identical long blocks repeated on later pages.
+    """
+    if not text:
+        return ""
+    blocks = re.split(r"\n{2,}", text)
+    cleaned = []
+    local_seen: set[str] = set()
+    for block in blocks:
+        lines = []
+        for line in block.splitlines():
+            value = line.strip()
+            if not value:
+                continue
+            # Animated counters often expose all digits in one long text node.
+            # Keep ordinary numbers, prices, dates, and short numeric tables.
+            compact = re.sub(r"\s+", "", value)
+            digit_count = sum(ch.isdigit() for ch in compact)
+            if len(compact) >= 40 and digit_count >= 30 and digit_count / len(compact) >= 0.65:
+                continue
+            lines.append(line)
+        block = "\n".join(lines).strip()
+        if not block:
+            continue
+        key = re.sub(r"\s+", " ", block).strip().casefold()
+        if len(key) >= 100:
+            if key in local_seen or (seen_blocks is not None and key in seen_blocks):
+                continue
+            local_seen.add(key)
+            if seen_blocks is not None:
+                seen_blocks.add(key)
+        cleaned.append(block)
+    return "\n\n".join(cleaned)
+
+
 def clean_and_extract_content(html: str, url: str) -> Dict[str, Any]:
     """
     Main extraction function combining Trafilatura and BeautifulSoup4.
@@ -123,7 +161,7 @@ def clean_and_extract_content(html: str, url: str) -> Dict[str, Any]:
     # Clean up whitespace & line breaks
     if extracted_text:
         # Normalize multiple newlines
-        extracted_text = re.sub(r"\n{3,}", "\n\n", extracted_text).strip()
+        extracted_text = clean_text_blocks(re.sub(r"\n{3,}", "\n\n", extracted_text).strip())
 
     word_count = len(extracted_text.split()) if extracted_text else 0
     char_count = len(extracted_text) if extracted_text else 0
