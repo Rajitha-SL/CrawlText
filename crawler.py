@@ -23,10 +23,11 @@ NON_HTML_EXTENSIONS = (
 )
 
 
-def normalize_url(url: str, base_url: str) -> Optional[str]:
+def normalize_url(url: str, base_url: str, preserve_trailing_slash: bool = False) -> Optional[str]:
     """
     Normalizes a link relative to base_url.
     Strips anchor fragments (#) and tracking query parameters.
+    Preserve trailing slashes for redirect targets to avoid canonicalization loops.
     Returns None if URL scheme is not http/https or contains binary extensions.
     """
     if not url or not isinstance(url, str):
@@ -64,7 +65,7 @@ def normalize_url(url: str, base_url: str) -> Optional[str]:
 
     # Strip trailing slash from path for consistency unless path is empty/root
     path = parsed.path
-    if path != "/" and path.endswith("/"):
+    if not preserve_trailing_slash and path != "/" and path.endswith("/"):
         path = path.rstrip("/")
 
     # Reconstruct normalized URL (dropping fragment)
@@ -175,7 +176,7 @@ class AsyncCrawler:
                         self._record_failure(f"The website returned HTTP {response.status_code} without a redirect destination.")
                         self.skipped_count += 1
                         return None
-                    target = normalize_url(location, url)
+                    target = normalize_url(location, url, preserve_trailing_slash=True)
                     if not target or not is_same_domain(target, self.root_domain):
                         self._record_failure("The website redirected outside the requested domain or to an unsupported URL.")
                         self.skipped_count += 1
