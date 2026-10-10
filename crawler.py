@@ -6,7 +6,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from security import is_ssrf_safe
-from extractor import clean_and_extract_content, format_page_output
+from extractor import clean_and_extract_content, format_page_output, clean_text_blocks
 
 # Marketing & Tracking parameters to strip
 TRACKING_PARAMS = {
@@ -93,6 +93,19 @@ def is_same_domain(target_url: str, root_domain: str) -> bool:
         return False
 
 
+def canonical_page_key(url: str) -> str:
+    """Identity key for the same page reached via www or trailing slash.
+
+    Do not discard query strings, which may identify distinct resources.
+    """
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower().removeprefix("www.")
+    path = parsed.path.rstrip("/") or "/"
+    port = f":{parsed.port}" if parsed.port else ""
+    return urlunparse((parsed.scheme.lower(), hostname + port, path,
+                       parsed.params, parsed.query, ""))
+
+
 class AsyncCrawler:
     """
     Production-grade async web crawler with politeness delay, SSRF defense,
@@ -126,6 +139,8 @@ class AsyncCrawler:
         self.crawled_count: int = 0
         self.failure_reasons: list[str] = []
         self.resolved_urls: dict[str, str] = {}
+        self.extracted_page_keys: Set[str] = set()
+        self.seen_text_blocks: Set[str] = set()
 
         self.semaphore = asyncio.Semaphore(self.concurrency)
 
@@ -283,6 +298,9 @@ class AsyncCrawler:
                     continue
 
                 self.visited_urls.add(current_url)
+                if canonical_page_key(current_url) in self.extracted_page_keys:
+                    self.skipped_count += 1
+                    continue
                 self.crawled_count += 1
 
                 await self._emit("log", {"level": "CRAWL", "message": f"[{self.crawled_count}/{self.max_pages}] Crawling (Depth {depth}): {current_url}"})
@@ -301,12 +319,27 @@ class AsyncCrawler:
 
                 # Use the final validated URL for source attribution and relative links.
                 effective_url = self.resolved_urls.get(current_url, current_url)
+                # A redirected alias may already have been extracted.
+                page_key = canonical_page_key(effective_url)
+                if page_key in self.extracted_page_keys:
+                    self.skipped_count += 1
+                    continue
                 # Content Extraction
                 extracted_data = clean_and_extract_content(html_content, effective_url)
                 if not extracted_data.get("success"):
                     self._record_failure("The page loaded, but no readable body text was found. It may require JavaScript rendering.")
                     self.skipped_count += 1
                     continue
+                # Suppress exact long boilerplate blocks repeated across pages.
+                # The extractor has already removed within-page repetitions.
+                cleaned_text = clean_text_blocks(extracted_data["text"], self.seen_text_blocks)
+                if not cleaned_text.strip():
+                    self.skipped_count += 1
+                    continue
+                extracted_data["text"] = cleaned_text
+                extracted_data["word_count"] = len(cleaned_text.split())
+                extracted_data["char_count"] = len(cleaned_text)
+                self.extracted_page_keys.add(page_key)
                 formatted_chunk = format_page_output(
                     extracted_data["title"],
                     extracted_data["url"],
