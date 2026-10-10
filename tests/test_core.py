@@ -126,3 +126,70 @@ def test_redirect_preserves_canonical_trailing_slash(monkeypatch):
     assert "canonical content" in result
     assert client.urls == ["https://whop.com/checkout/home", "https://whop.com/checkout/home/"]
     assert worker.resolved_urls["https://whop.com/checkout/home"] == "https://whop.com/checkout/home/"
+
+
+def test_clean_text_blocks_preserves_meaningful_numbers_and_removes_counters():
+    from extractor import clean_text_blocks
+
+    testimonial = "A genuine detailed customer testimonial describing the actual experience and the service received over several weeks."
+    source = (
+        "Annual plan costs $120 per year.\n\n"
+        + "$01234567890123456789012345678901234567890123456789\n\n"
+        + testimonial + "\n\n" + testimonial
+    )
+    result = clean_text_blocks(source)
+    assert "$120" in result
+    assert "0123456789012345" not in result
+    assert result.count(testimonial) == 1
+
+
+def test_shared_text_blocks_only_remove_exact_long_repeats():
+    from extractor import clean_text_blocks
+
+    seen = set()
+    shared = "Our platform supports subscriptions and recurring payments with flexible settlement and reporting options for businesses."
+    first = clean_text_blocks(shared + "\n\nUnique first-page content.", seen)
+    second = clean_text_blocks(shared + "\n\nUnique second-page content.", seen)
+    assert shared in first
+    assert shared not in second
+    assert "Unique second-page content." in second
+
+
+def test_canonical_page_key_preserves_queries_and_distinct_subdomains():
+    from crawler import canonical_page_key
+
+    assert canonical_page_key("https://www.whop.com/home/") == canonical_page_key("https://whop.com/home")
+    assert canonical_page_key("https://whop.com/home?tab=one") != canonical_page_key("https://whop.com/home?tab=two")
+    assert canonical_page_key("https://docs.whop.com/home") != canonical_page_key("https://whop.com/home")
+
+
+def test_crawl_skips_duplicate_resolved_pages(monkeypatch):
+    import asyncio
+    import crawler
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+    calls = []
+
+    async def fake_fetch(self, client, url, *args, **kwargs):
+        calls.append(url)
+        self.resolved_urls[url] = "https://www.whop.com/home/" if url.endswith("/home") else url
+        return "<html><head><title>Whop Home</title></head><body><main><p>A substantial unique paragraph about the product and services available to customers.</p></main></body></html>"
+
+    def fake_links(self, html, url):
+        return {"https://www.whop.com/home", "https://whop.com/home"}
+
+    monkeypatch.setattr(crawler, "is_ssrf_safe", lambda url: (True, ""))
+    monkeypatch.setattr(crawler.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    monkeypatch.setattr(crawler.AsyncCrawler, "fetch_page", fake_fetch)
+    monkeypatch.setattr(crawler.AsyncCrawler, "discover_links", fake_links)
+
+    worker = crawler.AsyncCrawler("https://whop.com/home", max_pages=5, crawl_delay_ms=0)
+    result = asyncio.run(worker.crawl())
+    assert len(result["extracted_pages"]) == 1
+    assert result["combined_output"].count("PAGE: Whop Home") == 1
