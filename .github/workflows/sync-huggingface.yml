@@ -1,0 +1,71 @@
+name: Sync CrawlText backend to Hugging Face
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - crawler.py
+      - extractor.py
+      - security.py
+      - requirements.txt
+      - .github/workflows/sync-huggingface.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crawltext-huggingface-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Hugging Face token is configured
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::Missing HF_TOKEN. Add it under Settings > Secrets and variables > Actions, then rerun this workflow."
+            exit 1
+          fi
+
+      - name: Checkout GitHub source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Hugging Face Hub
+        run: python -m pip install "huggingface_hub>=0.34,<2"
+
+      - name: Upload backend source to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          backend_files = [
+              "app.py",
+              "crawler.py",
+              "extractor.py",
+              "security.py",
+              "requirements.txt",
+          ]
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          api.upload_folder(
+              repo_id="RASL143/RaSL-CrawlText",
+              repo_type="space",
+              folder_path=".",
+              allow_patterns=backend_files,
+              commit_message="Sync CrawlText backend from GitHub",
+          )
+          print("Synced backend files to RASL143/RaSL-CrawlText")
+          PY
