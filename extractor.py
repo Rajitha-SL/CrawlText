@@ -89,39 +89,79 @@ def fallback_bs4_extract(html: str, url: str) -> str:
 
 
 def clean_text_blocks(text: str, seen_blocks: Optional[set[str]] = None) -> str:
-    """Remove obvious counter artifacts and exact repeated long blocks.
+    """Conservatively remove repeated long text and obvious animated counters.
 
-    Short headings, prices, lists and distinct content are retained. The optional
-    shared set suppresses identical long blocks repeated on later pages.
+    Keep short headings, prices, and meaningful numeric data. Repeated testimonial
+    quotes are removed together with their matching attribution (up to two lines).
+    A shared set additionally suppresses exact repeated material across pages.
     """
     if not text:
         return ""
-    blocks = re.split(r"\n{2,}", text)
     cleaned = []
     local_seen: set[str] = set()
-    for block in blocks:
+    for raw_block in re.split(r"\n{2,}", text):
+        raw_lines = [line for line in raw_block.splitlines() if line.strip()]
         lines = []
-        for line in block.splitlines():
+        index = 0
+        while index < len(raw_lines):
+            line = raw_lines[index]
             value = line.strip()
-            if not value:
-                continue
-            # Animated counters often expose all digits in one long text node.
-            # Keep ordinary numbers, prices, dates, and short numeric tables.
             compact = re.sub(r"\s+", "", value)
             digit_count = sum(ch.isdigit() for ch in compact)
-            if len(compact) >= 40 and digit_count >= 30 and digit_count / len(compact) >= 0.65:
+            # Counter animations may expose a sequence of digits instead of a
+            # value, including short artifacts such as ROAS0123456789.0123456789x.
+            repeated_digits = bool(re.search(r"0123456789(?:[.,]?0123456789)+", compact))
+            if repeated_digits or (len(compact) >= 40 and digit_count >= 30
+                                   and digit_count / len(compact) >= 0.65):
+                index += 1
                 continue
+
+            # A testimonial is a long quoted line followed by a short author
+            # and sometimes a short role. Deduplicate the entire unit, not just
+            # the quote, to avoid orphaned attributions.
+            is_quote = len(value) >= 90 and value.startswith(('"', '“', "'"))
+            group = [line]
+            if is_quote:
+                for following in raw_lines[index + 1:index + 3]:
+                    follower = following.strip()
+                    if not follower or len(follower) >= 85 or follower.startswith(('"', '“', "'")):
+                        break
+                    group.append(following)
+            group_key = re.sub(r"\s+", " ", "\n".join(group)).strip().casefold()
+            if is_quote and len(group) > 1:
+                index += len(group)
+                if group_key in local_seen or (seen_blocks is not None and group_key in seen_blocks):
+                    continue
+                local_seen.add(group_key)
+                if seen_blocks is not None:
+                    seen_blocks.add(group_key)
+                lines.extend(group)
+                continue
+
+            key = re.sub(r"\s+", " ", value).casefold()
+            if len(key) >= 100:
+                if key in local_seen or (seen_blocks is not None and key in seen_blocks):
+                    index += 1
+                    continue
+                local_seen.add(key)
+                if seen_blocks is not None:
+                    seen_blocks.add(key)
             lines.append(line)
+            index += 1
+
         block = "\n".join(lines).strip()
         if not block:
             continue
-        key = re.sub(r"\s+", " ", block).strip().casefold()
-        if len(key) >= 100:
-            if key in local_seen or (seen_blocks is not None and key in seen_blocks):
-                continue
-            local_seen.add(key)
-            if seen_blocks is not None:
-                seen_blocks.add(key)
+        block_key = re.sub(r"\s+", " ", block).strip().casefold()
+        if len(block_key) >= 100:
+            if block_key in local_seen or (seen_blocks is not None and block_key in seen_blocks):
+                # The single-line case has already been recorded above.
+                if len(lines) > 1:
+                    continue
+            else:
+                local_seen.add(block_key)
+                if seen_blocks is not None:
+                    seen_blocks.add(block_key)
         cleaned.append(block)
     return "\n\n".join(cleaned)
 
