@@ -117,13 +117,14 @@ class AsyncCrawler:
         self.cancel_event = cancel_event or asyncio.Event()
 
         parsed = urlparse(root_url)
-        self.root_domain = parsed.netloc
+        self.root_domain = parsed.netloc.removeprefix('www.')
 
         self.visited_urls: Set[str] = set()
         self.discovered_urls: Set[str] = set()
         self.skipped_count: int = 0
         self.crawled_count: int = 0
         self.failure_reasons: list[str] = []
+        self.resolved_urls: dict[str, str] = {}
 
         self.semaphore = asyncio.Semaphore(self.concurrency)
 
@@ -140,8 +141,16 @@ class AsyncCrawler:
         if len(self.failure_reasons) < 5 and message not in self.failure_reasons:
             self.failure_reasons.append(message)
 
-    async def fetch_page(self, client: httpx.AsyncClient, url: str) -> Optional[str]:
+    async def fetch_page(self, client: httpx.AsyncClient, url: str, redirect_count: int = 0, redirect_seen: Optional[Set[str]] = None) -> Optional[str]:
         """Fetches a page content safely checking SSRF and payload size limits."""
+        # Redirects are followed manually, validating each hop before any request.
+        # Restrict destinations to the original domain and cap the chain.
+        redirect_seen = redirect_seen or set()
+        if url in redirect_seen or redirect_count > 5:
+            self._record_failure("The website has a redirect loop or too many redirects.")
+            self.skipped_count += 1
+            return None
+        redirect_seen.add(url)
         # 1. SSRF Check
         is_safe, reason = is_ssrf_safe(url)
         if not is_safe:
@@ -158,13 +167,25 @@ class AsyncCrawler:
                 "Accept-Language": "en-US,en;q=0.5",
             }
             
-            # Never follow redirects automatically: redirect targets require their own security validation.
+            # HTTPX redirects stay disabled. Resolve and validate every Location manually.
             async with client.stream('GET', url, headers=headers, follow_redirects=False, timeout=12.0) as response:
                 if response.is_redirect:
-                    self._record_failure(f"The website returned HTTP {response.status_code} (redirect). Automatic redirects are disabled for safety.")
-                    await self._emit('log', {'level':'WARN', 'message':f'Redirect skipped for {url}'})
-                    self.skipped_count += 1
-                    return None
+                    location = response.headers.get("location")
+                    if not location:
+                        self._record_failure(f"The website returned HTTP {response.status_code} without a redirect destination.")
+                        self.skipped_count += 1
+                        return None
+                    target = normalize_url(location, url)
+                    if not target or not is_same_domain(target, self.root_domain):
+                        self._record_failure("The website redirected outside the requested domain or to an unsupported URL.")
+                        self.skipped_count += 1
+                        return None
+                    # Security and redirect-loop checks run again inside fetch_page.
+                    await self._emit('log', {'level':'INFO', 'message':f'Following HTTP {response.status_code} redirect to {target}'})
+                    html = await self.fetch_page(client, target, redirect_count + 1, redirect_seen)
+                    if html is not None:
+                        self.resolved_urls[url] = self.resolved_urls.get(target, target)
+                    return html
                 if response.status_code != 200:
                     code = response.status_code
                     if code in (401, 403):
@@ -196,6 +217,7 @@ class AsyncCrawler:
                         await self._emit('log', {'level':'WARN','message':'Page exceeded 2 MB limit'})
                         return None
                     chunks.append(chunk)
+                self.resolved_urls[url] = url
                 return b''.join(chunks).decode(response.encoding or 'utf-8', errors='replace')
 
         except httpx.TimeoutException:
@@ -276,8 +298,10 @@ class AsyncCrawler:
                 if not html_content:
                     continue
 
+                # Use the final validated URL for source attribution and relative links.
+                effective_url = self.resolved_urls.get(current_url, current_url)
                 # Content Extraction
-                extracted_data = clean_and_extract_content(html_content, current_url)
+                extracted_data = clean_and_extract_content(html_content, effective_url)
                 if not extracted_data.get("success"):
                     self._record_failure("The page loaded, but no readable body text was found. It may require JavaScript rendering.")
                     self.skipped_count += 1
@@ -300,7 +324,7 @@ class AsyncCrawler:
 
                 # Discover new links if depth < max_depth
                 if depth < self.max_depth and self.crawled_count + len(queue) < self.max_pages * 2:
-                    new_links = self.discover_links(html_content, current_url)
+                    new_links = self.discover_links(html_content, effective_url)
                     for link in new_links:
                         if link not in self.visited_urls and link not in self.discovered_urls:
                             self.discovered_urls.add(link)
