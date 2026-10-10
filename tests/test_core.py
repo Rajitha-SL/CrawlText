@@ -193,3 +193,35 @@ def test_crawl_skips_duplicate_resolved_pages(monkeypatch):
     result = asyncio.run(worker.crawl())
     assert len(result["extracted_pages"]) == 1
     assert result["combined_output"].count("PAGE: Whop Home") == 1
+
+
+def test_repeated_testimonials_remove_attribution_as_unit():
+    from extractor import clean_text_blocks
+
+    quote = '"This product has transformed our business by automating recurring payments and simplifying customer support over many years."'
+    sample = "\n".join([quote, "Alex Smith", "Founder of Example", quote, "Alex Smith", "Founder of Example", "A distinct heading"])
+    cleaned = clean_text_blocks(sample)
+    assert cleaned.count(quote) == 1
+    assert cleaned.count("Alex Smith") == 1
+    assert cleaned.count("Founder of Example") == 1
+    assert "A distinct heading" in cleaned
+
+
+def test_testimonial_with_different_author_is_preserved():
+    from extractor import clean_text_blocks
+
+    quote = '"This product has transformed our business by automating recurring payments and simplifying customer support over many years."'
+    sample = "\n".join([quote, "Alex Smith", "Founder of Example", quote, "Jamie Smith", "Founder of Another"])
+    cleaned = clean_text_blocks(sample)
+    assert cleaned.count(quote) == 2
+    assert "Jamie Smith" in cleaned
+
+
+def test_short_animated_counter_removed_without_harming_prices():
+    from extractor import clean_text_blocks
+
+    sample = "ROAS0123456789.0123456789x\n2.7% + $0.30 per transaction\nAnnual revenue $123,456.78"
+    cleaned = clean_text_blocks(sample)
+    assert "ROAS0123456789" not in cleaned
+    assert "2.7% + $0.30" in cleaned
+    assert "$123,456.78" in cleaned
