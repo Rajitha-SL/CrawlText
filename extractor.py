@@ -152,16 +152,6 @@ def clean_text_blocks(text: str, seen_blocks: Optional[set[str]] = None) -> str:
         block = "\n".join(lines).strip()
         if not block:
             continue
-        block_key = re.sub(r"\s+", " ", block).strip().casefold()
-        if len(block_key) >= 100:
-            if block_key in local_seen or (seen_blocks is not None and block_key in seen_blocks):
-                # The single-line case has already been recorded above.
-                if len(lines) > 1:
-                    continue
-            else:
-                local_seen.add(block_key)
-                if seen_blocks is not None:
-                    seen_blocks.add(block_key)
         cleaned.append(block)
     return "\n\n".join(cleaned)
 
