@@ -57,8 +57,8 @@ def test_safe_same_domain_redirect(monkeypatch):
     client = Client()
     result = asyncio.run(worker.fetch_page(client, "https://whop.com/home"))
     assert "Redirected page content" in result
-    assert client.urls == ["https://whop.com/home", "https://www.whop.com/home"]
-    assert worker.resolved_urls["https://whop.com/home"] == "https://www.whop.com/home"
+    assert client.urls == ["https://whop.com/home", "https://www.whop.com/home/"]
+    assert worker.resolved_urls["https://whop.com/home"] == "https://www.whop.com/home/"
 
 
 def test_external_redirect_is_blocked(monkeypatch):
@@ -85,3 +85,44 @@ def test_external_redirect_is_blocked(monkeypatch):
     result = asyncio.run(worker.fetch_page(Client(), "https://whop.com/home"))
     assert result is None
     assert any("outside the requested domain" in reason for reason in worker.failure_reasons)
+
+
+def test_redirect_preserves_canonical_trailing_slash(monkeypatch):
+    import asyncio
+    import crawler
+
+    class Response:
+        def __init__(self, status, location=None):
+            self.status_code = status
+            self.headers = {"Content-Type": "text/html"}
+            if location:
+                self.headers["location"] = location
+            self.encoding = "utf-8"
+            self.is_redirect = status in (301, 302, 303, 307, 308)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def aiter_bytes(self):
+            yield b"<html><body>canonical content</body></html>"
+
+    class Client:
+        def __init__(self):
+            self.urls = []
+
+        def stream(self, method, url, **kwargs):
+            self.urls.append(url)
+            if url == "https://whop.com/checkout/home":
+                return Response(308, "/checkout/home/")
+            return Response(200)
+
+    monkeypatch.setattr(crawler, "is_ssrf_safe", lambda url: (True, ""))
+    worker = crawler.AsyncCrawler("https://whop.com/checkout/home")
+    client = Client()
+    result = asyncio.run(worker.fetch_page(client, "https://whop.com/checkout/home"))
+    assert "canonical content" in result
+    assert client.urls == ["https://whop.com/checkout/home", "https://whop.com/checkout/home/"]
+    assert worker.resolved_urls["https://whop.com/checkout/home"] == "https://whop.com/checkout/home/"
