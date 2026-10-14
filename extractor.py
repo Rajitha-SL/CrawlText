@@ -177,7 +177,7 @@ def _is_protected_content_page(url: str) -> bool:
 
 
 def _template_line_key(line: str) -> str:
-    return re.sub(r"\\s+", " ", line).strip().casefold()
+    return re.sub(r"\s+", " ", line).strip().casefold()
 
 
 def _is_template_candidate(line: str) -> bool:
@@ -188,7 +188,7 @@ def _is_template_candidate(line: str) -> bool:
     # legal citations, and other material that may repeat for valid reasons.
     if value.startswith(('"', "'", "“", "```", "#", "//", "/*", "* ", "- ", "$ ", "> ")):
         return False
-    if re.search(r"(?:https?://|\\b(?:import|export|const|let|var|function|class|return)\\s|[{}<>]|\\$|\\b\\d+(?:[.,]\\d+)?\\s*%)", value):
+    if re.search(r"(?:https?://|\b(?:import|export|const|let|var|function|class|return)\s|[{}<>]|\$|\b\d+(?:[.,]\d+)?\s*%)", value):
         return False
     return True
 
@@ -235,7 +235,7 @@ def remove_repeated_site_templates(pages: list[Dict[str, Any]]) -> int:
                 page_removed.append(line)
             else:
                 kept_lines.append(line)
-        updated = "\\n".join(kept_lines).strip()
+        updated = "\n".join(kept_lines).strip()
         # Never turn a successfully extracted page into an empty stub.
         if not updated or len(updated) < 60 or len(updated) < len(original) * 0.15:
             for line in original.splitlines():
