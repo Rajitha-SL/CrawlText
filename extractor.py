@@ -1,5 +1,7 @@
 import re
 from typing import Dict, Any, Optional
+from collections import Counter
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import trafilatura
 
@@ -154,6 +156,103 @@ def clean_text_blocks(text: str, seen_blocks: Optional[set[str]] = None) -> str:
             continue
         cleaned.append(block)
     return "\n\n".join(cleaned)
+
+
+
+# Template deduplication is intentionally applied only after the full crawl:
+# a single page cannot establish that text is shared site-wide boilerplate.
+PROTECTED_PATH_PARTS = frozenset({
+    "docs", "documentation", "developers", "developer", "api", "reference",
+    "guides", "tutorials", "blog", "help", "support", "privacy", "terms",
+    "tos", "legal", "policy", "policies", "careers", "changelog", "license"
+})
+
+
+def _is_protected_content_page(url: str) -> bool:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    parts = {part.lower() for part in parsed.path.split("/") if part}
+    return (host.startswith(("docs.", "developers.", "developer.", "help.", "support."))
+            or bool(parts & PROTECTED_PATH_PARTS))
+
+
+def _template_line_key(line: str) -> str:
+    return re.sub(r"\\s+", " ", line).strip().casefold()
+
+
+def _is_template_candidate(line: str) -> bool:
+    value = line.strip()
+    if len(value) < 55 or len(value) > 650:
+        return False
+    # Avoid stripping code, quoted testimony, URLs, monetary figures, pricing,
+    # legal citations, and other material that may repeat for valid reasons.
+    if value.startswith(('"', "'", "“", "```", "#", "//", "/*", "* ", "- ", "$ ", "> ")):
+        return False
+    if re.search(r"(?:https?://|\\b(?:import|export|const|let|var|function|class|return)\\s|[{}<>]|\\$|\\b\\d+(?:[.,]\\d+)?\\s*%)", value):
+        return False
+    return True
+
+
+def remove_repeated_site_templates(pages: list[Dict[str, Any]]) -> int:
+    """Remove highly repeated marketing lines across distinct public landing pages.
+
+    Preserve one original occurrence for provenance and retain every page. Never
+    rewrite docs, legal, blog, support or code-oriented pages. Returns the number
+    of removed line occurrences.
+    """
+    eligible = [
+        page for page in pages
+        if not _is_protected_content_page(page.get("url", ""))
+        and isinstance(page.get("text"), str)
+    ]
+    if len(eligible) < 3:
+        return 0
+
+    counts: Counter[str] = Counter()
+    for page in eligible:
+        counts.update({
+            _template_line_key(line)
+            for line in page["text"].splitlines()
+            if _is_template_candidate(line)
+        })
+
+    # Require recurrence across independent pages, not repeated lines within
+    # one page. On large crawls the fraction prevents rare shared text removal.
+    minimum = max(3, int(len(eligible) * 0.10 + 0.999))
+    template_keys = {key for key, count in counts.items() if count >= minimum}
+    if not template_keys:
+        return 0
+
+    seen: set[str] = set()
+    removed = 0
+    for page in eligible:
+        original = page["text"]
+        kept_lines = []
+        page_removed = []
+        for line in original.splitlines():
+            key = _template_line_key(line)
+            if key in template_keys and key in seen and _is_template_candidate(line):
+                page_removed.append(line)
+            else:
+                kept_lines.append(line)
+        updated = "\\n".join(kept_lines).strip()
+        # Never turn a successfully extracted page into an empty stub.
+        if not updated or len(updated) < 60 or len(updated) < len(original) * 0.15:
+            for line in original.splitlines():
+                key = _template_line_key(line)
+                if key in template_keys and _is_template_candidate(line):
+                    seen.add(key)
+            continue
+
+        page["text"] = updated
+        page["word_count"] = len(updated.split())
+        page["char_count"] = len(updated)
+        removed += len(page_removed)
+        for line in original.splitlines():
+            key = _template_line_key(line)
+            if key in template_keys and _is_template_candidate(line):
+                seen.add(key)
+    return removed
 
 
 def clean_and_extract_content(html: str, url: str) -> Dict[str, Any]:
