@@ -6,7 +6,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from security import is_ssrf_safe
-from extractor import clean_and_extract_content, format_page_output, clean_text_blocks
+from extractor import clean_and_extract_content, format_page_output, clean_text_blocks, remove_repeated_site_templates
 
 # Marketing & Tracking parameters to strip
 TRACKING_PARAMS = {
@@ -375,6 +375,20 @@ class AsyncCrawler:
                 if self.crawl_delay > 0:
                     await asyncio.sleep(self.crawl_delay)
 
+        # Compare the completed crawl before removing shared marketing templates.
+        # The final export is rebuilt from the updated per-page text; page titles,
+        # source URLs, documentation, and legal text remain intact.
+        template_lines_removed = remove_repeated_site_templates(extracted_pages)
+        if template_lines_removed:
+            combined_output_chunks = [
+                format_page_output(page["title"], page["url"], page["text"])
+                for page in extracted_pages
+            ]
+            await self._emit("log", {
+                "level": "INFO",
+                "message": f"Removed {template_lines_removed} repeated marketing-template lines."
+            })
+
         final_summary = {
             "root_url": self.root_url,
             "target_domain": self.root_domain,
@@ -383,6 +397,7 @@ class AsyncCrawler:
             "pages_skipped": self.skipped_count,
             "extracted_pages": extracted_pages,
             "failure_reasons": self.failure_reasons,
+            "template_lines_removed": template_lines_removed,
             "combined_output": "".join(combined_output_chunks)
         }
 
