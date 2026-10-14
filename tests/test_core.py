@@ -225,3 +225,73 @@ def test_short_animated_counter_removed_without_harming_prices():
     assert "ROAS0123456789" not in cleaned
     assert "2.7% + $0.30" in cleaned
     assert "$123,456.78" in cleaned
+
+
+def test_template_dedupe_keeps_first_occurrence_and_unique_marketing_text():
+    from extractor import remove_repeated_site_templates
+
+    shared = "Get started for free in minutes, or contact us to see how our platform can grow your business."
+    pages = [
+        {
+            "url": f"https://example.com/product-{index}",
+            "title": f"Product {index}",
+            "text": shared + "\n" + f"Unique description for product {index} with useful product-specific information that customers need to see.",
+        }
+        for index in range(4)
+    ]
+    removed = remove_repeated_site_templates(pages)
+    assert removed == 3
+    assert sum(shared in page["text"] for page in pages) == 1
+    for index, page in enumerate(pages):
+        assert f"Unique description for product {index}" in page["text"]
+        assert page["char_count"] == len(page["text"])
+        assert page["word_count"] == len(page["text"].split())
+
+
+def test_template_dedupe_protects_docs_legal_code_and_pricing():
+    from extractor import remove_repeated_site_templates
+
+    shared = "Accept region-specific payment methods so customers worldwide can pay the way they prefer."
+    code = "const paymentClient = { provider: 'whop', retry: true };"
+    price = "Pay only $0.30 plus 2.7% for each successful transaction, with transparent pricing."
+    pages = [
+        {
+            "url": f"https://example.com/solutions/{i}",
+            "text": "\n".join((shared, code, price, f"Detailed and unique product explanation {i} with important contextual information.")),
+        }
+        for i in range(4)
+    ]
+    pages += [
+        {"url": "https://docs.example.com/reference/payments", "text": shared + "\n" + code},
+        {"url": "https://example.com/terms", "text": shared + "\n" + price},
+    ]
+    remove_repeated_site_templates(pages)
+    assert all(code in page["text"] and price in page["text"] for page in pages[:4])
+    assert shared in pages[4]["text"]
+    assert shared in pages[5]["text"]
+    assert sum(shared in page["text"] for page in pages[:4]) == 1
+
+
+def test_template_dedupe_does_not_empty_short_pages():
+    from extractor import remove_repeated_site_templates
+
+    shared = "Get started for free in minutes, or contact us to see how our platform can grow your business."
+    pages = [
+        {"url": f"https://example.com/offer/{i}", "text": shared + "\n" + ("Tiny note." if i == 3 else f"Unique explanation {i} with enough detail to stand on its own and help readers understand the offering.")}
+        for i in range(4)
+    ]
+    remove_repeated_site_templates(pages)
+    assert shared in pages[3]["text"]
+    assert "Tiny note." in pages[3]["text"]
+
+
+def test_template_dedupe_needs_multiple_distinct_pages():
+    from extractor import remove_repeated_site_templates
+
+    repeated = "This sentence appears many times within one page, but it is not evidence of a site-wide template."
+    pages = [
+        {"url": "https://example.com/a", "text": "\n".join([repeated] * 8)},
+        {"url": "https://example.com/b", "text": "A separate page with its own original information."},
+        {"url": "https://example.com/c", "text": "Another separate page with different information."},
+    ]
+    assert remove_repeated_site_templates(pages) == 0
